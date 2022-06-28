@@ -1,7 +1,8 @@
 import logging
 from aiogram import Bot, Dispatcher, executor, types
+import config
 
-API_TOKEN = '5572095516:AAETyYlnp4ysE3ERvcfwj8dTsG4MEeT20zY'
+API_TOKEN = config.telegram_bot_token
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
