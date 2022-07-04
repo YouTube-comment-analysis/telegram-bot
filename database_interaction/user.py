@@ -88,13 +88,15 @@ UPDATE public.cabinet
             """, (new_value, user_telegram_id))
 
 
-def user_exists(user_telegram_id: int):
+# tested
+def user_exists(user_telegram_id: int) -> bool:
     """Проверка зарегистрирован ли пользователь в базе"""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute("""
 SELECT EXISTS(
     SELECT * FROM public.cabinet
-        WHERE user_id = 3
+        WHERE user_id = %s
 )
             """, (user_telegram_id,))
+            return curs.fetchone()
