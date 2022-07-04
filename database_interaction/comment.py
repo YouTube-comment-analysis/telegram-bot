@@ -1,4 +1,4 @@
-from db_connection import connection
+from database_interaction.db_connection import connection
 
 
 def extract_comments(video_id: str, ordered_by_date: bool):

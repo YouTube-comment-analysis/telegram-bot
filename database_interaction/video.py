@@ -1,4 +1,4 @@
-from db_connection import connection
+from database_interaction.db_connection import connection
 
 
 def insert_video(channel_id: str, video_id: str):

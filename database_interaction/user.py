@@ -9,7 +9,6 @@ class UserRole(enum.Enum):
     manager = 'manager'
 
 
-# tested
 def get_user_role(user_telegram_id: int):
     """Получить роль пользователя"""
     with connection as connect:
@@ -37,7 +36,6 @@ class UserCabinet:
         self.credits = credits
 
 
-# tested
 def register_user(user_telegram_id: int, role: UserRole, user: UserCabinet):
     """Зарегистрировать пользователя"""
     with connection as connect:
@@ -55,7 +53,6 @@ INSERT INTO public.cabinet(
                   user.first_name, user.last_name, user.middle_name, user.phone))
 
 
-# tested
 def get_user_cabinet(user_telegram_id: int) -> UserCabinet:
     """Получить данные из личного кабинета"""
     with connection as connect:

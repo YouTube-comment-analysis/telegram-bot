@@ -1,4 +1,4 @@
-from db_connection import connection
+from database_interaction.db_connection import connection
 
 
 def insert_channel(channel_id: str):
