@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher, executor
 import config
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from guest import register_handlers_guest
+from interface.guest import register_handlers_guest
 
 storage = MemoryStorage()
 API_TOKEN = config.telegram_bot_token

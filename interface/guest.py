@@ -43,7 +43,7 @@ async def call_cancel_button(callback_query: types.CallbackQuery, state: FSMCont
         await state.finish()
         await bot.answer_callback_query(
             callback_query.id,
-            text='Регистрация отменена', show_alert=True)
+            text='Регистрация отменена.', show_alert=True)
 
 
 # Ловим текст - имя, и записываем его в СЛОВАРЬ
