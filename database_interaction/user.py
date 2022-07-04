@@ -9,6 +9,7 @@ class UserRole(enum.Enum):
     manager = 'manager'
 
 
+# tested
 def get_user_role(user_telegram_id: int):
     """Получить роль пользователя"""
     with connection as connect:
@@ -36,6 +37,7 @@ class UserCabinet:
         self.credits = credits
 
 
+# tested
 def register_user(user_telegram_id: int, role: UserRole, user: UserCabinet):
     """Зарегистрировать пользователя"""
     with connection as connect:
@@ -53,6 +55,7 @@ INSERT INTO public.cabinet(
                   user.first_name, user.last_name, user.middle_name, user.phone))
 
 
+# tested
 def get_user_cabinet(user_telegram_id: int) -> UserCabinet:
     """Получить данные из личного кабинета"""
     with connection as connect:
@@ -79,7 +82,19 @@ def update_user_credits(user_telegram_id: int, new_value: int):
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute("""
-SELECT user_id, credits, email, first_name, last_name, middle_name, phone
-    FROM public.cabinet
-    WHERE user_id = %s
+UPDATE public.cabinet
+    SET credits = %s
+    WHERE user_id = %s;
+            """, (new_value, user_telegram_id))
+
+
+def user_exists(user_telegram_id: int):
+    """Проверка зарегистрирован ли пользователь в базе"""
+    with connection as connect:
+        with connect.cursor() as curs:
+            curs.execute("""
+SELECT EXISTS(
+    SELECT * FROM public.cabinet
+        WHERE user_id = 3
+)
             """, (user_telegram_id,))

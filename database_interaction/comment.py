@@ -1,7 +1,7 @@
 from database_interaction.db_connection import connection
 
 
-def extract_comments(video_id: str, ordered_by_date: bool):
+def extract_comments(video_id: str, ordered_by_date: bool = False):
     """Скачать все комментарии к видео. Можно выбрать сортировку по дате, иначе по популярности"""
     with connection as connect:
         with connect.cursor() as curs:
