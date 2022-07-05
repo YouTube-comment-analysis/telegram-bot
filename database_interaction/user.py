@@ -99,4 +99,4 @@ SELECT EXISTS(
         WHERE user_id = %s
 )
             """, (user_telegram_id,))
-            return curs.fetchone()
+            return curs.fetchone()[0]
