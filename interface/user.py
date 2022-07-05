@@ -5,14 +5,14 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 import config
-from database_interaction.user import get_user_role, UserRole, get_user_cabinet, update_user_credits
 
 bot = Bot(token=config.telegram_bot_token)
 
 
 class FSMUser(StatesGroup):
     activate_promo = State()
-
+    analysis_video = State()
+    analysis_channel = State()
 
 # Главная клавиатура
 main_kb = InlineKeyboardMarkup().add(
@@ -22,15 +22,15 @@ main_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton(text='Помощь', callback_data='help_button'),
     InlineKeyboardButton(text='История', callback_data='history_button'))
 
-# Для главной страницы сообщение от бота
+# Для Главной страницы сообщение от бота
 msg_main = "Добро пожаловать на главную страницу!"
 
-# Для личного кабинета клавиатура
+# Для Личного кабинета клавиатура
 personal_account_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton(text='Активировать промокод', callback_data='activate_promo_code_button'),
     InlineKeyboardButton(text='Назад', callback_data='back_button'))
 
-# Для личного кабинета текст сообщения от бота
+# Для Личного кабинета текст сообщения от бота
 msg_personal_account = "Личный кабинет" \
                        "\nВаша роль: {role.name}" \
                        "\nВаше имя: {cab.first_name}" \
@@ -39,6 +39,16 @@ msg_personal_account = "Личный кабинет" \
                        "\nВаш номер телефона: {cab.phone}" \
                        "\nВаш email: {cab.email}" \
                        "\nКол-во энергии: {cab.credits}"
+
+# Для Анализа текст сообщения от бота
+msg_analysis = "Что хотите проанализировать?" \
+               "\nЗАМЕЧАНИЕ: Анализ будет произведен максимум для {???} комментариев"
+
+# Для Анализа клавиатура
+analysis_kb = InlineKeyboardMarkup().add(
+    InlineKeyboardButton(text='Анализ видео', callback_data='analysis_video_button'),
+    InlineKeyboardButton(text='Анализ канала', callback_data='analysis_channel_button'),
+    InlineKeyboardButton(text='Назад', callback_data='back_button'))
 
 
 # State machine for user home page
@@ -52,7 +62,7 @@ async def personal_area_button(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
 
 
-# Обрабатываем кнопку "Назад" и "Ок"
+# Обрабатываем ВСЕ кнопки "Назад" и кнопку "Ок"
 async def call_back_button(callback_query: types.CallbackQuery, state: FSMContext):
     curren_state = await state.get_state()
     if curren_state is None:
@@ -68,15 +78,27 @@ async def call_activate_promo_button(callback_query: types.CallbackQuery, state:
                                                                           callback_data='cancel_button')))
 
 
-# Выход из состояния активации промокода, обрабатываем кнопку "Отмена"
+# Выход из состояния активации промокода, обрабатываем ВСЕ кнопки "Отмена"
 async def call_cancel_button(callback_query: types.CallbackQuery, state: FSMContext):
     curren_state = await state.get_state()
     if curren_state is not None:
+        #Найти как сравнивать состояния..
+        if curren_state == 'FSMUser:activate_promo':
+            await bot.answer_callback_query(
+                callback_query.id,
+                text='Введение промокода отменено', show_alert=True)
+            await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
+        elif curren_state == 'FSMUser:analysis_video':
+            await bot.answer_callback_query(
+                callback_query.id,
+                text='Введение URL видео отменено', show_alert=True)
+            await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
+        elif curren_state == 'FSMUser:analysis_channel':
+            await bot.answer_callback_query(
+                callback_query.id,
+                text='Введение URL канала отменено', show_alert=True)
+            await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
         await state.reset_state()
-        await bot.answer_callback_query(
-            callback_query.id,
-            text='Введение промокода отменено', show_alert=True)
-        await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
 
 
 # Ловим текст - промокод
@@ -85,11 +107,34 @@ async def get_promo_and_give_credits(message: types.Message, state: FSMContext):
         await bot.send_message(message.chat.id, "Энергия пополнена", reply_markup=types.InlineKeyboardMarkup().add(
             types.InlineKeyboardButton(text='ОК',
                                        callback_data='back_button')))
-        await state.finish()
+        await state.reset_state()
     else:
         await bot.send_message(message.chat.id, "Неверный промокод", reply_markup=types.InlineKeyboardMarkup().add(
             types.InlineKeyboardButton(text='Отмена',
                                        callback_data='cancel_button')))
+
+
+# Обработчик кнопки "Проанализировать"
+async def call_analysis_button(callback_query: types.CallbackQuery):
+    await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
+
+
+# Обрабатываем кнопку "Анализ видео"
+async def call_analysis_video_button(callback_query: types.CallbackQuery, state: FSMContext):
+    await FSMUser.analysis_video.set()
+    await callback_query.message.edit_text(text="Введите URL видео.",
+                                           reply_markup=types.InlineKeyboardMarkup().add(
+                                               types.InlineKeyboardButton(text='Отмена',
+                                                                          callback_data='cancel_button')))
+
+
+# Обрабатываем кнопку "Анализ канала"
+async def call_analysis_channel_button(callback_query: types.CallbackQuery, state: FSMContext):
+    await FSMUser.analysis_channel.set()
+    await callback_query.message.edit_text(text="Введите URL канала.",
+                                           reply_markup=types.InlineKeyboardMarkup().add(
+                                               types.InlineKeyboardButton(text='Отмена',
+                                                                          callback_data='cancel_button')))
 
 
 # Регистрируем хендлеры
@@ -100,4 +145,6 @@ def register_handlers_user(dp: Dispatcher):
     dp.register_callback_query_handler(call_activate_promo_button, text='activate_promo_code_button')
     dp.register_callback_query_handler(call_cancel_button, state="*", text='cancel_button')
     dp.register_message_handler(get_promo_and_give_credits, state=FSMUser.activate_promo)
-
+    dp.register_callback_query_handler(call_analysis_button, text='analysis_button')
+    dp.register_callback_query_handler(call_analysis_video_button, text='analysis_video_button')
+    dp.register_callback_query_handler(call_analysis_channel_button, text='analysis_channel_button')
