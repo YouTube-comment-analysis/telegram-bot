@@ -134,6 +134,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
             if 'continuationItemRenderer' not in comment_data:
                 comment = get_comment_from_comment_data(comment_data['commentThreadRenderer']['comment']['commentRenderer'])
                 comment.is_reply = False
+                comment.video_url = url
                 yield comment
 
                 if 'replies' in comment_data['commentThreadRenderer']:
@@ -153,6 +154,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
                         if 'commentRenderer' in comment_data:
                             comment = get_comment_from_comment_data(comment_data['commentRenderer'])
                             comment.is_reply = True
+                            comment.video_url = url
                             yield comment
 
                     last_comment_data = new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']['continuationItems'][-1]
