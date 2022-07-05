@@ -28,6 +28,6 @@ def sign_in(login: str, password: str) -> tuple[bool, int]:
     :return:
     При верных данных возвращается [True, user_id], при неверных [False, 0]
     """
-    pwd = database.auth.get_password(login)
+    pwd = auth.get_password(login)
     check = is_correct_password(pwd[0], pwd[1], password)
     return (True, auth.get_user_id(login)) if check else (False, 0)
