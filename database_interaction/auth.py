@@ -37,8 +37,8 @@ def create_user_and_cabinet(role: UserRole, user: UserCabinet) -> int:
         with connect.cursor() as curs:
             curs.execute("""
 INSERT INTO public.users(
-    user_id, enter_date, role_name)
-    VALUES (%s, current_timestamp, %s)
+    enter_date, role_name)
+    VALUES (current_timestamp, %s)
     RETURNING user_id
             """, (role.value,))
             user_id: int = curs.fetchone()[0]

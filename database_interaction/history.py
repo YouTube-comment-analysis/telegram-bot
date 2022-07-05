@@ -1,6 +1,6 @@
 from datetime import datetime
 from database_interaction.db_connection import connection
-from favorite import FavoriteChannel, FavoriteVideo
+from database_interaction.favorite import FavoriteChannel, FavoriteVideo
 
 
 class HistoryChannel(FavoriteChannel):

@@ -26,9 +26,8 @@ SELECT user_id, enter_date, role_name
 class UserCabinet:
     """Класс, хранящий информацию о пользователе"""
 
-    def __init__(self, user_id: int, first_name: str, last_name: str, middle_name: str, phone: str, email: str,
+    def __init__(self, first_name: str, last_name: str, middle_name: str, phone: str, email: str,
                  credits: int):
-        self.user_id = user_id
         self.first_name = first_name
         self.last_name = last_name
         self.middle_name = middle_name
@@ -36,25 +35,25 @@ class UserCabinet:
         self.email = email
         self.credits = credits
 
+
 # tested
 def get_user_cabinet(user_id: int) -> UserCabinet:
     """Получить данные из личного кабинета"""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute("""
-SELECT user_id, credits, email, first_name, last_name, middle_name, phone
+SELECT credits, email, first_name, last_name, middle_name, phone
     FROM public.cabinet
     WHERE user_id = %s
             """, (user_id,))
             data = curs.fetchone()
             return UserCabinet(
-                user_id=data[0],
-                credits=data[1],
-                email=data[2],
-                first_name=data[3],
-                last_name=data[4],
-                middle_name=data[5],
-                phone=data[6],
+                credits=data[0],
+                email=data[1],
+                first_name=data[2],
+                last_name=data[3],
+                middle_name=data[4],
+                phone=data[5],
             )
 
 
