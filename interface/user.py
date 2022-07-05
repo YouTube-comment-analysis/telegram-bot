@@ -22,39 +22,41 @@ main_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton(text='Помощь', callback_data='help_button'),
     InlineKeyboardButton(text='История', callback_data='history_button'))
 
+# Для главной страницы сообщение от бота
+msg_main = "Добро пожаловать на главную страницу!"
+
 # Для личного кабинета клавиатура
 personal_account_kb = InlineKeyboardMarkup().add(
     InlineKeyboardButton(text='Активировать промокод', callback_data='activate_promo_code_button'),
     InlineKeyboardButton(text='Назад', callback_data='back_button'))
 
+# Для личного кабинета текст сообщения от бота
+msg_personal_account = "Личный кабинет" \
+                       "\nВаша роль: {role.name}" \
+                       "\nВаше имя: {cab.first_name}" \
+                       "\nВаша фамилия: {cab.last_name}" \
+                       "\nВаше отчество: {cab.middle_name}" \
+                       "\nВаш номер телефона: {cab.phone}" \
+                       "\nВаш email: {cab.email}" \
+                       "\nКол-во энергии: {cab.credits}"
+
 
 # State machine for user home page
 
 async def start_home(message: types.Message):
-    await bot.send_message(message.chat.id, 'Приветствую пользователь!', reply_markup=main_kb)
+    await bot.send_message(message.chat.id, msg_main, reply_markup=main_kb)
 
 
 # Обработчик кнопки "Личный кабинет"
 async def personal_area_button(callback_query: types.CallbackQuery):
-    role = get_user_role(callback_query.from_user.id)
-    cab = get_user_cabinet(callback_query.from_user.id)
-    await callback_query.message.edit_text(
-        text=f"Личный кабинет"
-             f"\nВаша роль: {role.name}"
-             f"\nВаше имя: {cab.first_name}"
-             f"\nВаша фамилия: {cab.last_name}"
-             f"\nВаше отчество: {cab.middle_name}"
-             f"\nВаш номер телефона: {cab.phone}"
-             f"\nВаш email: {cab.email}"
-             f"\nКол-во энергии: {cab.credits}",
-        reply_markup=personal_account_kb)
+    await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
 
 
-# Обрабатываем кнопку "Назад"
+# Обрабатываем кнопку "Назад" и "Ок"
 async def call_back_button(callback_query: types.CallbackQuery, state: FSMContext):
     curren_state = await state.get_state()
     if curren_state is None:
-        await callback_query.message.edit_text(text="Приветствую пользователь!", reply_markup=main_kb)
+        await callback_query.message.edit_text(text=msg_main, reply_markup=main_kb)
 
 
 # Обрабатываем кнопку "Активировать промокод"
@@ -66,36 +68,36 @@ async def call_activate_promo_button(callback_query: types.CallbackQuery, state:
                                                                           callback_data='cancel_button')))
 
 
-# Выход из состояния активации промокода
+# Выход из состояния активации промокода, обрабатываем кнопку "Отмена"
 async def call_cancel_button(callback_query: types.CallbackQuery, state: FSMContext):
     curren_state = await state.get_state()
     if curren_state is not None:
-        await state.finish()
+        await state.reset_state()
         await bot.answer_callback_query(
             callback_query.id,
             text='Введение промокода отменено', show_alert=True)
+        await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
 
 
 # Ловим текст - промокод
 async def get_promo_and_give_credits(message: types.Message, state: FSMContext):
     if '1' == message.text:  # '1' это номер промокода
-        update_user_credits(message.from_user.id, get_user_cabinet(message.from_user.id).credits + 5)
-        await message.reply("Энергия пополнена! Пожалуйста ведите команду /home_page")
+        await bot.send_message(message.chat.id, "Энергия пополнена", reply_markup=types.InlineKeyboardMarkup().add(
+            types.InlineKeyboardButton(text='ОК',
+                                       callback_data='back_button')))
         await state.finish()
     else:
-        await message.reply("Неверный промокод", reply_markup=types.InlineKeyboardMarkup().add(
+        await bot.send_message(message.chat.id, "Неверный промокод", reply_markup=types.InlineKeyboardMarkup().add(
             types.InlineKeyboardButton(text='Отмена',
                                        callback_data='cancel_button')))
 
 
 # Регистрируем хендлеры
 def register_handlers_user(dp: Dispatcher):
-    dp.register_message_handler(start_home, state=None)
+    dp.register_message_handler(start_home, commands='home_page', state=None)
     dp.register_callback_query_handler(personal_area_button, text='personal_area_button')
     dp.register_callback_query_handler(call_back_button, state="*", text='back_button')
     dp.register_callback_query_handler(call_activate_promo_button, text='activate_promo_code_button')
     dp.register_callback_query_handler(call_cancel_button, state="*", text='cancel_button')
     dp.register_message_handler(get_promo_and_give_credits, state=FSMUser.activate_promo)
-    # dp.register_message_handler(get_last_name, state=FSMGuest.last_name)
-    # dp.register_message_handler(get_middle_name, state=FSMGuest.middle_name)
-    # dp.register_message_handler(get_phone, state=FSMGuest.phone)
+
