@@ -123,8 +123,6 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
         response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
         js = response.json()
 
-    comments = []
-
     is_end = False
     index = 1
     continuation_name = 'reloadContinuationItemsCommand'
@@ -136,7 +134,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
             if 'continuationItemRenderer' not in comment_data:
                 comment = get_comment_from_comment_data(comment_data['commentThreadRenderer']['comment']['commentRenderer'])
                 comment.is_reply = False
-                comments.append(comment)
+                yield comment
 
                 if 'replies' in comment_data['commentThreadRenderer']:
                     tokens.append(comment_data['commentThreadRenderer']['replies']['commentRepliesRenderer']['contents'][0]
@@ -148,7 +146,6 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
             new_js = response.json()
 
             if 'continuationItems' in new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']:
-                print('Считывается группа из ' + str(len(new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']['continuationItems'])) + ' комментариев')
                 is_sub_end = False
                 while not is_sub_end:
                     is_sub_end = True
@@ -156,7 +153,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
                         if 'commentRenderer' in comment_data:
                             comment = get_comment_from_comment_data(comment_data['commentRenderer'])
                             comment.is_reply = True
-                            comments.append(comment)
+                            yield comment
 
                     last_comment_data = new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']['continuationItems'][-1]
                     if 'commentRenderer' not in last_comment_data:
@@ -165,7 +162,6 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
                         response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
                         new_js = response.json()
                         is_sub_end = False
-                        print('Открываются остальные комментарии')
 
         last_comment_data = js['onResponseReceivedEndpoints'][index][continuation_name]['continuationItems'][-1]
         if 'continuationItemRenderer' in last_comment_data:
@@ -174,12 +170,9 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
             response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
             js = response.json()
             is_end = False
-            print('Загружена следующая страница')
 
         index = 0
         continuation_name = 'appendContinuationItemsAction'
-
-    return comments
 
 
 
