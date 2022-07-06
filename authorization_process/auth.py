@@ -34,8 +34,11 @@ def sign_in(login: str, password: str, telegram_id: int) -> tuple[bool, int]:
         return False, 0
     else:
         user_id = auth.get_user_id(login)
-        authorized_users[telegram_id] = user_id
-        return True, user_id
+        if user_id not in authorized_users.values():
+            authorized_users[telegram_id] = user_id
+            return True, user_id
+        else:
+            return False, 0
 
 
 def sign_out(telegram_id: int):
@@ -50,3 +53,5 @@ def sign_out(telegram_id: int):
         return False
 
 
+def check_auth(telegram_id: int):
+    return telegram_id in authorized_users
