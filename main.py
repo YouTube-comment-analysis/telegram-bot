@@ -1,7 +1,7 @@
 import logging
 from aiogram import Bot, Dispatcher, executor
 import config
-from database_interaction.user import get_user_role, UserRole, user_exists
+from database_interaction.user import get_user_role, UserRole
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from interface.guest import register_handlers_guest
