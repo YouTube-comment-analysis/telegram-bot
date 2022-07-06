@@ -151,7 +151,6 @@ async def call_back_button(callback_query: types.CallbackQuery, state: FSMContex
     curren_state = await state.get_state()
     if curren_state is None:
         await callback_query.message.edit_text(text=msg_main, reply_markup=main_kb)
-        # await state.reset_state()
     elif curren_state == 'FSMUser:favorites_video' or curren_state == 'FSMUser:favorites_channel':
         await callback_query.message.edit_text(text=msg_favorites, reply_markup=favorites_kb)
         await state.reset_state()
@@ -189,7 +188,6 @@ async def call_activate_promo_button(callback_query: types.CallbackQuery, state:
 async def call_cancel_button(callback_query: types.CallbackQuery, state: FSMContext):
     curren_state = await state.get_state()
     if curren_state is not None:
-        # Найти как сравнивать состояния..
         if curren_state == 'FSMUser:activate_promo':
             await bot.answer_callback_query(
                 callback_query.id,
