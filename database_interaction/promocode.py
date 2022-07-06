@@ -1,5 +1,5 @@
 from database_interaction.db_connection import connection
-from user import add_user_credits
+from database_interaction.user import add_user_credits
 
 
 def use_promocode(user_id: int, promocode: str) -> tuple[bool, int]:
