@@ -57,6 +57,34 @@ SELECT credits, email, first_name, last_name, middle_name, phone
             )
 
 
+def get_user_credits(user_id: int):
+    """Получить текущие кредиты пользователя"""
+    return get_user_cabinet(user_id).credits
+
+
+def add_user_credits(user_id: int, addition: int):
+    """Добавить кредиты пользователю"""
+    user_credits = get_user_credits(user_id)
+    update_user_credits(user_id, user_credits + addition)
+
+
+def decrease_user_credits(user_id: int, decrease: int) -> bool:
+    """
+    Забрать кредиты у пользователя
+    :param decrease кредиты должны быть > 0
+    :return Возвращается успех операции True - успешно, False - недостаточно кредитов
+    """
+    if decrease < 0:
+        raise 'кредиты должны быть > 0'
+
+    user_credits = get_user_credits(user_id)
+    if user_credits - decrease <= 0:
+        return False
+    else:
+        update_user_credits(user_id, user_credits - decrease)
+        return True
+
+
 def update_user_credits(user_id: int, new_value: int):
     """Обновить кредиты у пользователя"""
     with connection as connect:

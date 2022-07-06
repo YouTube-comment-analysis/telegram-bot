@@ -5,7 +5,7 @@ import time
 import dateparser
 import requests
 
-from comment import Comment
+from comment_scrapping.comment import Comment
 
 YOUTUBE_VIDEO_URL = 'https://www.youtube.com/watch?v={youtube_id}'
 
@@ -16,6 +16,7 @@ SORT_BY_RECENT = 1
 
 YT_CFG_RE = r'ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;'
 YT_INITIAL_DATA_RE = r'(?:window\s*\[\s*["\']ytInitialData["\']\s*\]|ytInitialData)\s*=\s*({.+?})\s*;\s*(?:var\s+meta|</script|\n)'
+
 
 class YoutubeCommentDownloader:
     def __init__(self):

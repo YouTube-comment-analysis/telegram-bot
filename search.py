@@ -3,10 +3,11 @@ import time
 
 import dateparser
 from aiogram.utils import json
+#  pip install youtube-search-python
 from youtubesearchpython import ChannelsSearch
 import requests
 
-from comment import Comment
+from comment_scrapping.comment import Comment
 
 SESSION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'
 
