@@ -101,7 +101,7 @@ def get_comment_from_comment_data(json):
     return comment
 
 
-def get_comments_from_video(url, is_sort_by_recent_needed=False):
+def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_needed=True):
     response = requests.get(url)
 
     session = requests.Session()
@@ -137,9 +137,10 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False):
                 comment.video_url = url
                 yield comment
 
-                if 'replies' in comment_data['commentThreadRenderer']:
-                    tokens.append(comment_data['commentThreadRenderer']['replies']['commentRepliesRenderer']['contents'][0]
-                                  ['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token'])
+                if are_replies_needed:
+                    if 'replies' in comment_data['commentThreadRenderer']:
+                        tokens.append(comment_data['commentThreadRenderer']['replies']['commentRepliesRenderer']['contents'][0]
+                                      ['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token'])
 
         for token in tokens:
             data = {'context': context, 'continuation': token}
