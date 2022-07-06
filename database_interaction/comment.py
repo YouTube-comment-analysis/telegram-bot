@@ -35,6 +35,10 @@ INSERT INTO public.commentary(
                 """, (video_id, row.text, row.writting_date, row.likes, row.popular_order, row.is_reply))
 
 
+def delete_comments(video_id: str):
+    NotImplemented
+
+
 
 
 

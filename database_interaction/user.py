@@ -66,17 +66,3 @@ UPDATE public.cabinet
     SET credits = %s
     WHERE user_id = %s;
             """, (new_value, user_id))
-
-
-# tested
-def user_exists(user_id: int) -> bool:
-    """Проверка зарегистрирован ли пользователь в базе"""
-    with connection as connect:
-        with connect.cursor() as curs:
-            curs.execute("""
-SELECT EXISTS(
-    SELECT * FROM public.cabinet
-        WHERE user_id = %s
-)
-            """, (user_id,))
-            return curs.fetchone()[0]
