@@ -4,10 +4,12 @@ import time
 
 import dateparser
 from aiogram.utils import json
+#  pip install youtube-search-python
 from youtubesearchpython import ChannelsSearch
 import requests
 
-from comment import Comment
+from comment_scrapping.comment import Comment
+import database
 
 SESSION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'
 
@@ -230,8 +232,12 @@ def get_list_of_channel_videos_with_additional_information(channel_url, start_da
     dic_list = []
     for url in video_urls:
         dic_list.append({'url': url, 'comment_count': get_video_comments_count(url)})
-        print(str(len(dic_list)) + "/" + str(len(video_urls)))
-    print(len(dic_list))
+        if database.video.video_exists('test'):
+            scinfo = database.video.get_all_scrap_info('test')
+            dic_list[-1].update(scinfo)
+        if __debug__:
+            print(str(len(dic_list)) + "/" + str(len(video_urls)))
+    return dic_list
 
-#get_list_of_channel_videos_with_additional_information('https://www.youtube.com/channel/UCvmPqx1L8OQByKXZsgQKGOQ/videos', datetime.date(2021,9,2),datetime.date(2021,9,2))
+#get_list_of_channel_videos_with_additional_information('https://www.youtube.com/channel/UCvmPqx1L8OQByKXZsgQKGOQ/videos', datetime.date(2021,5,2),datetime.date(2021,11,2))
 
