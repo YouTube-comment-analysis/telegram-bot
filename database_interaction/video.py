@@ -67,6 +67,22 @@ WHERE url = %s
             return data[0] if data is not None else 0
 
 
+def get_all_scrap_info(video_id: str) -> tuple[[int, datetime], [int, datetime]]:
+    """
+    Получить всю информацию о последних загрузках
+   :return [(По популярности), (По дате)]
+    """
+    with connection as connect:
+        with connect.cursor() as curs:
+            curs.execute(f"""
+SELECT last_popular_scrap, comments_by_date, comments_by_popular, last_by_date_scrap
+FROM public.video
+WHERE url = %s
+                """, (video_id,))
+            data = curs.fetchone()
+            return [data[2], data[0]], [data[3], data[1]]
+
+
 def video_exists(video_id: str) -> bool:
     """Получить содержится ли видео в базе"""
     with connection as connect:
