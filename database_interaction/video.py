@@ -67,20 +67,21 @@ WHERE url = %s
             return data[0] if data is not None else 0
 
 
-def get_all_scrap_info(video_id: str) -> tuple[[int, datetime], [int, datetime]]:
+def get_all_scrap_info(video_id: str) -> dict:
     """
     Получить всю информацию о последних загрузках
-   :return [(По популярности), (По дате)]
+    :return Возвращает словарь с ключами 'last_popular', 'popular_comments', 'last_date', 'date_comments'
     """
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT last_popular_scrap, comments_by_date, comments_by_popular, last_by_date_scrap
+SELECT last_popular_scrap, comments_by_popular, last_by_date_scrap, comments_by_date 
 FROM public.video
 WHERE url = %s
                 """, (video_id,))
             data = curs.fetchone()
-            return [data[2], data[0]], [data[3], data[1]]
+            return {'last_popular': data[0], 'popular_comments': data[1],
+                    'last_date': data[2], 'date_comments': data[3]}
 
 
 def video_exists(video_id: str) -> bool:

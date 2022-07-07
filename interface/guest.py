@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram import Dispatcher
 import config
-from database_interaction.user import UserRole, UserCabinet, register_user, user_exists
+from database_interaction.user import UserCabinet
 
 bot = Bot(token=config.telegram_bot_token)
 
@@ -18,7 +18,7 @@ class FSMGuest(StatesGroup):
     phone = State()
 
 
-questCabinet = UserCabinet(0, "Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
+questCabinet = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
 
 
 async def start_of_registration(message: types.Message):
