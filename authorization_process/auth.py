@@ -62,3 +62,20 @@ def get_authed_user_id(telegram_id: int) -> tuple[bool, int]:
         return True, authorized_users[telegram_id]
     else:
         return False, 0
+
+
+def change_password(telegram_id: int, old_password: str, new_password: str) -> bool:
+    """
+    Смена пароля у пользователя
+    :return Успех операции
+    """
+    authed, user_id = get_authed_user_id(telegram_id)
+    if authed:
+        old_salt, old_pwd_hash = auth.get_password(auth.get_user_login(user_id))
+        if is_correct_password(old_salt, old_pwd_hash, old_password):
+            new_salt, new_pwd_hash = hash_new_password(new_password)
+            auth.change_password(user_id, new_salt, new_pwd_hash)
+            return True
+    return False
+
+

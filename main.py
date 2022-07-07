@@ -1,37 +1,251 @@
+import asyncio
 import logging
-from aiogram import Bot, Dispatcher, executor
-import config
-from database_interaction.user import get_user_role, UserRole
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
+import os.path
 
-from interface.guest import register_handlers_guest
-from interface.user import register_handlers_user
+from aiogram import Bot, Dispatcher
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram.types import Message, CallbackQuery
+
+from aiogram_dialog import Dialog, DialogManager, DialogRegistry, Window, StartMode
+from aiogram_dialog.manager.protocols import ManagedDialogAdapterProto
+from aiogram_dialog.widgets.input import MessageInput
+from aiogram_dialog.widgets.kbd import Button
+from aiogram_dialog.widgets.text import Const
+
+import config
+from authorization_process.auth import sign_in, sign_up
+from database_interaction.auth import get_login_exists
+from database_interaction.user import UserCabinet, UserRole
+
+src_dir = os.path.normpath(os.path.join(__file__, os.path.pardir))
 
 API_TOKEN = config.telegram_bot_token
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
-# Initialize bot and dispatcher
-bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot, storage=MemoryStorage())
-
-register_handlers_user(dp)
-
-# @dp.message_handler(commands=['start'])
-# async def renewal(message):
-#     if not user_exists(message.chat.id):
-#         await bot.send_message(message.chat.id, 'Введите команду /home_page')
-#         register_handlers_guest(dp)
-#     elif get_user_role(message.chat.id) == UserRole.user:
-#         await bot.send_message(message.chat.id, 'Введите команду /home_page')
-#         register_handlers_user(dp)
-#     elif get_user_role(message.chat.id) == UserRole.admin:
-#         await bot.send_message(message.chat.id, 'Введите команду /home_page')
-#         # register_handlers_admin(dp)
-#     elif get_user_role(message.chat.id) == UserRole.manager:
-#         await bot.send_message(message.chat.id, 'Введите команду /home_page')
-#         # register_handlers_manager(dp)
+class DialogSign(StatesGroup):
+    start = State()  # состояния для начального входа в программу
+    input_name = State()
+    input_surname = State()
+    input_patronymic = State()
+    input_phone = State()
+    input_email = State()
+    input_log = State()
+    input_passw = State()
+    return_input_passw = State()
+    registration_status = State()
+    input_login = State()
+    input_password = State()
+    login_status = State()
+    home_page = State()
 
 
-executor.start_polling(dp, skip_updates=True)
+info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
+login = None
+password = None
+return_password = None
+
+
+async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogSign.input_name)
+
+
+async def name_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                       manager: DialogManager):
+    info.first_name = m.text
+    await m.answer(f"Приятно познакомиться, {m.text}.")
+    await dialog.next()
+
+
+async def surname_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                          manager: DialogManager):
+    info.last_name = m.text
+    await dialog.next()
+
+
+async def patronymic_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                             manager: DialogManager):
+    info.middle_name = m.text
+    await dialog.next()
+
+
+async def phone_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                        manager: DialogManager):
+    info.phone = m.text
+    await dialog.next()
+
+
+async def email_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                        manager: DialogManager):
+    info.email = m.text
+    await dialog.next()
+
+
+async def to_sign_in(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogSign.input_login)
+
+
+# Для входа
+async def login_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                        manager: DialogManager):
+    if get_login_exists(m.text):
+        global login
+        login = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Ваш логин: {m.text} - неверный.")
+        await manager.dialog().switch_to(DialogSign.input_login)
+
+
+# Для входа
+async def password_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                           manager: DialogManager):
+    if sign_in(login, m.text, m.from_user.id):
+        await dialog.next()
+    else:
+        await m.answer("Ваш пароль неверный. Повторите.")
+        await manager.dialog().switch_to(DialogSign.input_password)
+
+
+# Для регистрации
+async def log_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                      manager: DialogManager):
+    global login
+    login = m.text
+    await dialog.next()
+
+
+# Для регистрации
+async def passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                        manager: DialogManager):
+    global password
+    password = m.text
+    await dialog.next()
+
+
+# Для регистрации
+async def return_password_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                                  manager: DialogManager):
+    if m.text == password:
+        global return_password
+        return_password = m.text
+        sign_up(info, UserRole.user, login, return_password)
+        await dialog.next()
+    else:
+        await m.answer("Ваш повторный пароль не совпадает с предыдущим.")
+        await manager.dialog().switch_to(DialogSign.input_passw)
+
+
+async def to_ok(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogSign.home_page)
+
+
+async def to_cancel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogSign.start)
+
+
+# async def go_next(c: CallbackQuery, button: Button, manager: DialogManager):
+#     await manager.dialog().next()
+
+
+dialog = Dialog(
+    Window(
+        Const(
+            "Приветствую гость! Вам необходимо зарегистрироваться/войти в систему. \nИначе вы не сможете пользоваться функциями бота"),
+        Button(Const("Зарегистрироваться"), id="sign_up", on_click=to_sign_up),
+        Button(Const("Войти"), id="sign_in", on_click=to_sign_in),
+        state=DialogSign.start,
+    ),
+    Window(
+        Const("Введите ваше имя."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(name_handler),
+        state=DialogSign.input_name,
+    ),
+    Window(
+        Const("Теперь введите вашу фамилию."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(surname_handler),
+        state=DialogSign.input_surname,
+    ),
+    Window(
+        Const("Теперь введите ваше отчество."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(patronymic_handler),
+        state=DialogSign.input_patronymic,
+    ),
+    Window(
+        Const("Теперь введите ваш номер телефона.\nПожалуйста используйте данный формат: 79123456789"),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(phone_handler),
+        state=DialogSign.input_phone,
+    ),
+    Window(
+        Const("Осталось ввести вашу электронную почту."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(email_handler),
+        state=DialogSign.input_email,
+    ),
+    Window(
+        Const("Введите ваш логин."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(log_handler),
+        state=DialogSign.input_log,
+    ),
+    Window(
+        Const("Введите ваш пароль"),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(passw_handler),
+        state=DialogSign.input_passw,
+    ),
+    Window(
+        Const("Повторите введенный пароль."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(return_password_handler),
+        state=DialogSign.return_input_passw,
+    ),
+    Window(
+        Const("Ваша регистрация завершена!"),
+        Button(Const("ОК"), id="ok", on_click=to_ok),
+        state=DialogSign.registration_status,
+    ),
+    Window(
+        Const("Введите логин."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(login_handler),
+        state=DialogSign.input_login,
+    ),
+    Window(
+        Const("Введите пароль."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(password_handler),
+        state=DialogSign.input_password,
+    ),
+    Window(
+        Const("Вход выполнен!"),
+        Button(Const("ОК"), id="ok", on_click=to_ok),
+        state=DialogSign.login_status,
+    )
+)
+
+
+async def start(m: Message, dialog_manager: DialogManager):
+    # it is important to reset stack because user wants to restart everything
+    await dialog_manager.start(DialogSign.start, mode=StartMode.RESET_STACK)
+
+
+async def main():
+    # real main
+    logging.basicConfig(level=logging.INFO)
+    storage = MemoryStorage()
+    bot = Bot(token=API_TOKEN)
+    dp = Dispatcher(bot, storage=storage)
+    dp.register_message_handler(start, text="/start", state="*")
+    registry = DialogRegistry(dp)
+    registry.register(dialog)
+
+    await dp.start_polling()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

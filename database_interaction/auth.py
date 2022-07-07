@@ -20,6 +20,17 @@ def get_password(login: str) -> tuple[bytes, bytes]:
             return data[0], data[1]
 
 
+def get_user_login(user_id: int) -> str:
+    """Получение логина пользователя по user_id"""
+    with connection as connect:
+        with connect.cursor() as curs:
+            curs.execute("""
+SELECT login
+FROM public.authorization
+    WHERE user_id = %s
+            """, (user_id,))
+            return curs.fetchone()[0]
+
 def get_login_exists(login: str) -> bool:
     """Проверить зарегистрирован ли пользователь с таким логином"""
     with connection as connect:
