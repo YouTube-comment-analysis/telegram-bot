@@ -42,3 +42,13 @@ class DialogUser(StatesGroup):
     help = State()
     settings = State()
     exit = State()
+
+
+class DialogAdmin(StatesGroup):
+    start = State()  # состояния для начального входа в программу
+
+
+class DialogMngr(StatesGroup):
+    start = State()  # состояния для начального входа в программу
+    get_login_to_give_energy = State()
+    give_energy = State()

@@ -8,8 +8,9 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram_dialog import DialogRegistry
 
 import config
-from interface.FSM import DialogUser
+from interface.admin import dialog_admin
 from interface.authorization_or_registration import start, dialog_start
+from interface.manager import dialog_manager
 from interface.user import dialog_user
 
 src_dir = os.path.normpath(os.path.join(__file__, os.path.pardir))
@@ -24,10 +25,12 @@ async def main():
     bot = Bot(token=API_TOKEN)
     dp = Dispatcher(bot, storage=storage)
     dp.register_message_handler(start, text="/start", state="*")
-    # dp.register_message_handler(settings, text="/settings", state=DialogUser.all_states) - не работает
+    # не работает - dp.register_message_handler(settings, text="/settings", state=DialogUser.all_states)
     registry = DialogRegistry(dp)
     registry.register(dialog_start)
     registry.register(dialog_user)
+    registry.register(dialog_admin)
+    registry.register(dialog_manager)
 
     await dp.start_polling()
 
