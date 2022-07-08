@@ -439,7 +439,7 @@ dialog_user = Dialog(
     ),
     Window(
         Const("Какие избранные хотите просмотреть?"),
-        # TODO: вывод названия канала/видеоролика в избранном
+        # TODO: вывод названия канала/видеоролика в избранном, и добавить отступы
         Button(Const("Видео"), id="favorites_video", on_click=to_favorites_video),
         Button(Const("Каналы"), id="favorites_channel", on_click=to_favorites_channel),
         Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),

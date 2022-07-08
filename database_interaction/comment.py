@@ -2,7 +2,7 @@ import datetime
 
 from database_interaction.db_connection import connection
 from comment_scrapping.comment import Comment
-from video import ScrapBy, update_scrap_date
+from database_interaction.video import ScrapBy, update_scrap_date
 
 def extract_comments(video_id: str, ordered_by_date: bool = False) -> [Comment]:
     """Скачать все комментарии к видео. Можно выбрать сортировку по дате, иначе по популярности"""
