@@ -1,468 +1,575 @@
-from aiogram import types, Bot
-from aiogram import Dispatcher
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram import Bot
+from aiogram.types import CallbackQuery
+from aiogram.types import Message
+from aiogram_dialog.widgets.input import MessageInput
+from aiogram_dialog.widgets.kbd import Button
+from aiogram_dialog.widgets.text import Const, Format
+from aiogram.dispatcher.filters.state import StatesGroup, State
+from aiogram_dialog.manager.protocols import ManagedDialogAdapterProto
+from aiogram_dialog import Dialog, Window, DialogManager, StartMode
 
+import authorization
 import config
+from authorization_process.auth import get_authed_user_id, change_password
+from authorization_process.password_encryption import is_correct_password
+from database_interaction.auth import get_password, get_user_login
+from database_interaction.promocode import use_promocode
+from database_interaction.user import get_user_cabinet, get_user_role
+
+import database
+
+from interface.FSM import DialogSign, DialogUser
 
 bot = Bot(token=config.telegram_bot_token)
 
+# class DialogUser(StatesGroup):
+#     home_page = State()
+#     personal_area = State()
+#     activate_promo = State()
+#     input_old_passw = State()
+#     input_new_passw = State()
+#     # состояния для анализа
+#     favorites = State()
+#     favorites_video = State()
+#     favorites_channel = State()
+#     view_all_video_in_favorites = State()
+#     add_video_in_favorites = State()
+#     delete_video_in_favorites = State()
+#     # еще куча каких то состояний
+#     exit = State()
 
-class FSMUser(StatesGroup):
-    activate_promo = State()
-    analysis_video = State()
-    analysis_channel = State()
-    favorites_video = State()
-    favorites_channel = State()
-    view_all_video = State()
-    view_all_channel = State()
-    add_video_in_favorites = State()
-    delete_video_in_favorites = State()
-    add_channel_in_favorites = State()
-    delete_channel_in_favorites = State()
-    history_video = State()
-    view_all_video_in_history = State()
-    history_channel = State()
-    view_all_channel_in_history = State()
-
-
-# Главная клавиатура
-main_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Личный кабинет', callback_data='personal_area_button'),
-    InlineKeyboardButton(text='Проанализировать', callback_data='analysis_button'),
-    InlineKeyboardButton(text='Избранное', callback_data='favorites_button'),
-    InlineKeyboardButton(text='Помощь', callback_data='help_button'),
-    InlineKeyboardButton(text='История', callback_data='history_button'),
-    InlineKeyboardButton(text='Выход', callback_data='exit_button'))
-
-# Для Главной страницы сообщение от бота
-msg_main = "Добро пожаловать на главную страницу!"
-
-# Для Личного кабинета клавиатура
-personal_account_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Активировать промокод', callback_data='activate_promo_code_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для Личного кабинета текст сообщения от бота
-msg_personal_account = "Личный кабинет" \
-                       "\nВаша роль: {role.name}" \
-                       "\nВаше имя: {cab.first_name}" \
-                       "\nВаша фамилия: {cab.last_name}" \
-                       "\nВаше отчество: {cab.middle_name}" \
-                       "\nВаш номер телефона: {cab.phone}" \
-                       "\nВаш email: {cab.email}" \
-                       "\nКол-во энергии: {cab.credits}"
-
-# Для Анализа текст сообщения от бота
-msg_analysis = "Что хотите проанализировать?" \
-               "\nЗАМЕЧАНИЕ: Анализ будет произведен максимум для {???} комментариев"
-
-# Для Анализа клавиатура
-analysis_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Анализ видео', callback_data='analysis_video_button'),
-    InlineKeyboardButton(text='Анализ канала', callback_data='analysis_channel_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для Избранного текст сообщения от бота
-msg_favorites = "Какие избранные хотите просмотреть?"
-
-# Для Избранного клавиатура
-favorites_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Видео', callback_data='favorites_video_button'),
-    InlineKeyboardButton(text='Каналы', callback_data='favorites_channel_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для 5 последних - Избранного видео/канала текст сообщения
-msg_favorites_short_list = "\nVVVVVVVVVVVV" \
-                           "\nVVVVVVVVVVVV" \
-                           "\nVVVVVVVVVVVV" \
-                           "\nVVVVVVVVVVVV" \
-                           "\nVVVVVVVVVVVV"
-
-# Для всех - Избранного видео/канала текст сообщения
-msg_favorites_long_list = "\nVVVVVVVVVVVV" \
-                          "\nVVVVVVVVVVVV" \
-                          "\nVVVVVVVVVVVV" \
-                          "\n............" \
-                          "\nVVVVVVVVVVVV"
-
-# Для 5 последних - Избранного видео клавиатура
-favorites_short_list_video_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Просмотреть всё', callback_data='view_all_video_button'),
-    InlineKeyboardButton(text='Добавить по ссылке в избранного', callback_data='add_video_to_favorites_button'),
-    InlineKeyboardButton(text='Удалить по ссылке из избранного', callback_data='delete_video_from_favorites_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для 5 последних - Избранного канала клавиатура
-favorites_short_list_channel_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Просмотреть всё', callback_data='view_all_channel_button'),
-    InlineKeyboardButton(text='Добавить по ссылке в избранного', callback_data='add_channel_to_favorites_button'),
-    InlineKeyboardButton(text='Удалить по ссылке из избранного', callback_data='delete_channel_from_favorites_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для Истории текст сообщения от бота
-msg_history = "Какую историю хотите просмотреть?"
-
-# Для Истории клавиатура
-history_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Видео', callback_data='history_video_button'),
-    InlineKeyboardButton(text='Каналы', callback_data='history_channel_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для 5 последних - истории видео/канала текст сообщения
-msg_history_short_list = "\nVVVVVVVVVVVV" \
-                         "\nVVVVVVVVVVVV" \
-                         "\nVVVVVVVVVVVV" \
-                         "\nVVVVVVVVVVVV" \
-                         "\nVVVVVVVVVVVV"
-
-# Для всех - истории видео/канала текст сообщения
-msg_history_long_list = "\nVVVVVVVVVVVV" \
-                        "\nVVVVVVVVVVVV" \
-                        "\nVVVVVVVVVVVV" \
-                        "\n............" \
-                        "\nVVVVVVVVVVVV"
-
-# Для 5 последних - истории видео клавиатура
-history_short_list_video_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Просмотреть всё', callback_data='view_all_video_history_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
-
-# Для 5 последних - истории канала клавиатура
-history_short_list_channel_kb = InlineKeyboardMarkup().add(
-    InlineKeyboardButton(text='Просмотреть всё', callback_data='view_all_channel_history_button'),
-    InlineKeyboardButton(text='Назад', callback_data='back_button'))
+# analysis_video = State()
+# analysis_channel = State()
+# view_all_video = State()
+# view_all_channel = State()
+# add_video_in_favorites = State()
+# delete_video_in_favorites = State()
+# add_channel_in_favorites = State()
+# delete_channel_in_favorites = State()
+# history_video = State()
+# view_all_video_in_history = State()
+# history_channel = State()
+# view_all_channel_in_history = State()
 
 
-# State machine for user home page
-
-async def start_home(message: types.Message):
-    await bot.send_message(message.chat.id, msg_main, reply_markup=main_kb)
+"""Личный кабинет"""
 
 
-# Обработчик кнопки "Личный кабинет"
-async def personal_area_button(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
+async def to_personal_area(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.personal_area)
 
 
-# Обрабатываем ВСЕ кнопки "Назад" и кнопку "Ок"
-async def call_back_button(callback_query: types.CallbackQuery, state: FSMContext):
-    curren_state = await state.get_state()
-    if curren_state is None:
-        await callback_query.message.edit_text(text=msg_main, reply_markup=main_kb)
-    elif curren_state == 'FSMUser:favorites_video' or curren_state == 'FSMUser:favorites_channel':
-        await callback_query.message.edit_text(text=msg_favorites, reply_markup=favorites_kb)
-        await state.reset_state()
-    elif curren_state == 'FSMUser:history_channel' or curren_state == 'FSMUser:history_video':
-        await callback_query.message.edit_text(text=msg_history, reply_markup=history_kb)
-        await state.reset_state()
-    elif curren_state == 'FSMUser:view_all_video':
-        await callback_query.message.edit_text(text="Список 5 последних избранных ВИДЕО:" + msg_favorites_short_list,
-                                               reply_markup=favorites_short_list_video_kb)
-        await FSMUser.favorites_video.set()
-    elif curren_state == 'FSMUser:view_all_channel':
-        await callback_query.message.edit_text(text="Список 5 последних избранных КАНАЛОВ:" + msg_favorites_short_list,
-                                               reply_markup=favorites_short_list_channel_kb)
-        await FSMUser.favorites_channel.set()
-    elif curren_state == 'FSMUser:view_all_channel_in_history':
-        await callback_query.message.edit_text(text="Список 5 последних КАНАЛОВ в истории:" + msg_history_short_list,
-                                               reply_markup=history_short_list_channel_kb)
-        await FSMUser.history_channel.set()
-    elif curren_state == 'FSMUser:view_all_video_in_history':
-        await callback_query.message.edit_text(text="Список 5 последних ВИДЕО в истории:" + msg_history_short_list,
-                                               reply_markup=history_short_list_video_kb)
-        await FSMUser.history_video.set()
+async def get_data_personal_area(dialog_manager: DialogManager, **kwargs):
+    telegram_id = dialog_manager.event.from_user.id
+    user_id = get_authed_user_id(telegram_id)[1]
+    user_personal_area = get_user_cabinet(user_id)
+    user_role = get_user_role(user_id).name
+    # dialog_data = dialog_manager.current_context().dialog_data
+    return {
+        "role": user_role,
+        "name": user_personal_area.first_name,
+        "surname": user_personal_area.last_name,
+        "patronymic": user_personal_area.middle_name,
+        "email": user_personal_area.email,
+        "phone": user_personal_area.phone,
+        "credits": user_personal_area.credits,
+    }
 
 
-# Обрабатываем кнопку "Активировать промокод"
-async def call_activate_promo_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.activate_promo.set()
-    await callback_query.message.edit_text(text="Введите промокод",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+async def to_activate_promo(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.activate_promo)
 
 
-# Выход из состояния активации промокода, обрабатываем ВСЕ кнопки "Отмена"
-async def call_cancel_button(callback_query: types.CallbackQuery, state: FSMContext):
-    curren_state = await state.get_state()
-    if curren_state is not None:
-        if curren_state == 'FSMUser:activate_promo':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Введение промокода отменено', show_alert=True)
-            await callback_query.message.edit_text(text=msg_personal_account, reply_markup=personal_account_kb)
-            await state.reset_state()
-        elif curren_state == 'FSMUser:analysis_video':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Введение URL видео отменено', show_alert=True)
-            await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
-            await state.reset_state()
-        elif curren_state == 'FSMUser:analysis_channel':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Введение URL канала отменено', show_alert=True)
-            await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
-            await state.reset_state()
-        elif curren_state == 'FSMUser:add_video_in_favorites':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Ввод URL видео для добавления отменено', show_alert=True)
-            await callback_query.message.edit_text(
-                text="Список 5 последних избранных ВИДЕО:" + msg_favorites_short_list,
-                reply_markup=favorites_short_list_video_kb)
-            await FSMUser.favorites_video.set()
-        elif curren_state == 'FSMUser:delete_video_in_favorites':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Ввод URL видео для удаления отменено', show_alert=True)
-            await callback_query.message.edit_text(
-                text="Список 5 последних избранных ВИДЕО:" + msg_favorites_short_list,
-                reply_markup=favorites_short_list_video_kb)
-            await FSMUser.favorites_video.set()
-        elif curren_state == 'FSMUser:add_channel_in_favorites':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Ввод URL канала для добавления отменено', show_alert=True)
-            await callback_query.message.edit_text(
-                text="Список 5 последних избранных КАНАЛОВ:" + msg_favorites_short_list,
-                reply_markup=favorites_short_list_channel_kb)
-            await FSMUser.favorites_channel.set()
-        elif curren_state == 'FSMUser:delete_channel_in_favorites':
-            await bot.answer_callback_query(
-                callback_query.id,
-                text='Ввод URL канала для удаления отменено', show_alert=True)
-            await callback_query.message.edit_text(
-                text="Список 5 последних избранных КАНАЛОВ:" + msg_favorites_short_list,
-                reply_markup=favorites_short_list_channel_kb)
-            await FSMUser.favorites_channel.set()
-
-
-# Ловим текст - промокод
-async def get_promo_and_give_credits(message: types.Message, state: FSMContext):
-    if '1' == message.text:  # '1' это номер промокода
-        await bot.send_message(message.chat.id, "Энергия пополнена", reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='ОК',
-                                       callback_data='back_button')))
-        await state.reset_state()
+async def promo_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                        manager: DialogManager):
+    if use_promocode(get_authed_user_id(m.from_user.id)[1], m.text)[0]:
+        await m.answer(f"Ваша энергия успешно пополнена!")
+        await manager.dialog().switch_to(DialogUser.personal_area)
     else:
-        await bot.send_message(message.chat.id, "Неверный промокод", reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='Отмена',
-                                       callback_data='cancel_button')))
+        await m.answer(f"Неверный промокод.")
+        await manager.dialog().switch_to(DialogUser.activate_promo)
 
 
-# Обработчик кнопки "Проанализировать"
-async def call_analysis_button(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(text=msg_analysis, reply_markup=analysis_kb)
+async def to_cancel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.personal_area)
 
 
-# Обрабатываем кнопку "Анализ видео"
-async def call_analysis_video_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.analysis_video.set()
-    await callback_query.message.edit_text(text="Введите URL видео.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+async def to_change_passw(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.input_old_passw)
 
 
-# Обрабатываем кнопку "Анализ канала"
-async def call_analysis_channel_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.analysis_channel.set()
-    await callback_query.message.edit_text(text="Введите URL канала.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+old_passw = None
 
 
-# Обработчик кнопки "Избранное"
-async def call_favorites_button(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(text=msg_favorites, reply_markup=favorites_kb)
+async def input_old_passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                                  manager: DialogManager):
+    old_salt, old_pwd_hash = get_password(get_user_login(get_authed_user_id(m.from_user.id)[1]))
+    if is_correct_password(old_salt, old_pwd_hash, m.text):
+        global old_passw
+        old_passw = m.text
+        await manager.dialog().switch_to(DialogUser.input_new_passw)
+    else:
+        await m.answer(f"Вы неправильно ввели ваш старый пароль.")
+        await manager.dialog().switch_to(DialogUser.input_old_passw)
 
 
-# Обрабатываем кнопку "Избранные видео"
-async def call_favorites_video_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.favorites_video.set()
-    await callback_query.message.edit_text(
-        text="Список 5 последних избранных ВИДЕО:" + msg_favorites_short_list,
-        reply_markup=favorites_short_list_video_kb)
+async def input_new_passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                                  manager: DialogManager):
+    # if change_password(m.from_user.id, old_passw, m.text):
+    change_password(m.from_user.id, old_passw, m.text)
+    await m.answer(f"Пароль изменен!")
+    await manager.dialog().switch_to(DialogUser.personal_area)
+    # else:
+    #     await m.answer(f"Вы неправильно ввели ваш старый пароль.")
+    #     await manager.dialog().switch_to(DialogUser.input_old_passw)
 
 
-# Обрабатываем кнопку "Просмотреть все" ВИДЕО
-async def call_view_all_video_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.view_all_video.set()
-    await callback_query.message.edit_text(
-        text="Список всех избранных ВИДЕО:" + msg_favorites_long_list,
-        reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='Назад',
-                                       callback_data='back_button')))
+async def to_back_in_home_page(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.home_page)
 
 
-# Обрабатываем кнопку "Добавить видео в избранное"
-async def call_add_video_in_favorites_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.add_video_in_favorites.set()
-    await callback_query.message.edit_text(text="Введите URL видео которое хотите добавить.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+"""Избранное"""
 
 
-# Ловим текст - URL видео для добавления в избранное
-async def get_url_video_and_add_to_favorites(message: types.Message, state: FSMContext):
-    await bot.send_message(message.chat.id, "Видео добавлено в избранное: {True}",
-                           reply_markup=types.InlineKeyboardMarkup().add(
-                               types.InlineKeyboardButton(text='ОК',
-                                                          callback_data='back_button')))
-    await FSMUser.favorites_video.set()
+async def to_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.favorites)
 
 
-# Обрабатываем кнопку "Удалить видео из избранного"
-async def call_delete_video_in_favorites_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.delete_video_in_favorites.set()
-    await callback_query.message.edit_text(text="Введите URL видео которое хотите удалить.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+"""Избранное ВИДЕО"""
 
 
-# Обрабатываем кнопку "Избранные каналы"
-async def call_favorites_channel_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.favorites_channel.set()
-    await callback_query.message.edit_text(
-        text="Список 5 последних избранных КАНАЛОВ:" + msg_favorites_short_list,
-        reply_markup=favorites_short_list_channel_kb)
+async def to_favorites_video(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.favorites_video)
 
 
-# Обрабатываем кнопку "Просмотреть все" КАНАЛЫ
-async def call_view_all_channel_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.view_all_channel.set()
-    await callback_query.message.edit_text(
-        text="Список всех избранных КАНАЛОВ:" + msg_favorites_long_list,
-        reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='Назад',
-                                       callback_data='back_button')))
+async def get_data_last_ten_favorites_video(dialog_manager: DialogManager, **kwargs):
+    check, user_id = get_authed_user_id(dialog_manager.event.from_user.id)
+    ten_favorites_video = list(map(lambda x: f"https://www.youtube.com/watch?v={x}",
+                                   database.favorite.get_favorite_user_videos(user_id, True)))
+    # # dialog_data = dialog_manager.current_context().dialog_data
+    return {
+        "text1": "У вас нет избранных видео." if len(ten_favorites_video) == 0 else "\n".join(ten_favorites_video),
+    }
 
 
-# Обрабатываем кнопку "Добавить канал в избранное"
-async def call_add_channel_in_favorites_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.add_channel_in_favorites.set()
-    await callback_query.message.edit_text(text="Введите URL канала которое хотите добавить.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+async def to_view_all_favorites_video(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.view_all_video_in_favorites)
 
 
-# Ловим текст - URL канала для добавления в избранное
-async def get_url_channel_and_add_to_favorites(message: types.Message, state: FSMContext):
-    await bot.send_message(message.chat.id, "Канал добавлен в избранное: {True}",
-                           reply_markup=types.InlineKeyboardMarkup().add(
-                               types.InlineKeyboardButton(text='ОК',
-                                                          callback_data='back_button')))
-    await FSMUser.favorites_video.set()
+async def get_data_favorites_video(dialog_manager: DialogManager, **kwargs):
+    check, user_id = get_authed_user_id(dialog_manager.event.from_user.id)
+    data = database.favorite.get_favorite_user_videos(user_id, False)
+    favorites_video = list(map(lambda x: f"https://www.youtube.com/watch?v={x}",
+                               data))
+    return {
+        "text3": "У вас нет избранных видео." if len(favorites_video) == 0 else "\n".join(favorites_video),
+    }
 
 
-# Обрабатываем кнопку "Удалить канал из избранного"
-async def call_delete_channel_in_favorites_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.delete_channel_in_favorites.set()
-    await callback_query.message.edit_text(text="Введите URL канала которое хотите удалить.",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Отмена',
-                                                                          callback_data='cancel_button')))
+async def to_back_in_last_ten_favorites_video(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.favorites_video)
 
 
-# Обработчик кнопки "Помощь"
-async def help_button(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(text="Данный бот может:"
-                                                "\n1)................"
-                                                "\n2)................"
-                                                "\n3)................"
-                                                "\nКоманды для бота:"
-                                                "\n/start - запуск бота"
-                                                "\nБыстрые перемещения:"
-                                                "\n/home_page - домашняя страница (главная)"
-                                                "\n/analysis - анализ"
-                                                "\n/favorites - избранные URL"
-                                                "\n/history - история запросов",
-                                           reply_markup=types.InlineKeyboardMarkup().add(
-                                               types.InlineKeyboardButton(text='Назад',
-                                                                          callback_data='back_button')))
+async def to_add_video_in_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.add_video_in_favorites)
 
 
-# Обработчик кнопки "История"
-async def history_button(callback_query: types.CallbackQuery):
-    await callback_query.message.edit_text(text=msg_history, reply_markup=history_kb)
+async def input_url_video_to_add_in_favorites(m: Message, dialog: ManagedDialogAdapterProto,
+                                              manager: DialogManager):
+    check, user_id = authorization.get_authed_user_id(m.from_user.id)
+    url = m.text
+    if "www.youtube.com/watch?v=" in url:
+        id = url.split('watch?v=')[1]
+        if id not in database.favorite.get_favorite_user_videos(user_id):
+            database.favorite.add_favorite_user_video(user_id, id)
+            await m.answer(f"Ваше видео добавлено в избранное!")
+        else:
+            await m.answer(f"Это видео уже есть в избранном.")
+        await manager.dialog().switch_to(DialogUser.favorites_video)
+    else:
+        await m.answer(f"Это не похоже на ссылку с YouTube... ")
+        await manager.dialog().switch_to(DialogUser.add_video_in_favorites)
 
 
-# Обрабатываем кнопку "История видео"
-async def call_history_video_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.history_video.set()
-    await callback_query.message.edit_text(
-        text="Список 5 последних ВИДЕО в истории:" + msg_history_short_list,
-        reply_markup=history_short_list_video_kb)
+async def to_delete_video_in_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.delete_video_in_favorites)
 
 
-# Обрабатываем кнопку "Просмотреть все" ВИДЕО В ИСТОРИИ
-async def call_view_all_video_history_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.view_all_video_in_history.set()
-    await callback_query.message.edit_text(
-        text="Список всех ВИДЕО в истории:" + msg_history_long_list,
-        reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='Назад',
-                                       callback_data='back_button')))
+async def input_url_video_to_delete_in_favorites(m: Message, dialog: ManagedDialogAdapterProto,
+                                                 manager: DialogManager):
+    check, user_id = authorization.get_authed_user_id(m.from_user.id)
+    url = m.text
+    if "www.youtube.com/watch?v=" in url:
+        id = url.split('watch?v=')[1]
+        if id in database.favorite.get_favorite_user_videos(user_id):
+            database.favorite.delete_favorite_user_video(user_id, id)
+            await m.answer(f"Ваше видео из избранного удалено!")
+            await manager.dialog().switch_to(DialogUser.favorites_video)
+        else:
+            await m.answer(f"Этого видео нет в вашем избранном... ")
+            await manager.dialog().switch_to(DialogUser.delete_video_in_favorites)
+    else:
+        await m.answer(f"Это не похоже на ссылку... ")
+        await manager.dialog().switch_to(DialogUser.delete_video_in_favorites)
 
 
-# Обрабатываем кнопку "История каналы"
-async def call_history_channel_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.history_channel.set()
-    await callback_query.message.edit_text(
-        text="Список 5 последних КАНАЛОВ в истории:" + msg_history_short_list,
-        reply_markup=history_short_list_channel_kb)
+"""Избранные КАНАЛЫ"""
 
 
-# Обрабатываем кнопку "Просмотреть все" КАНАЛЫ В ИСТОРИИ
-async def call_view_all_channel_history_button(callback_query: types.CallbackQuery, state: FSMContext):
-    await FSMUser.view_all_channel_in_history.set()
-    await callback_query.message.edit_text(
-        text="Список всех КАНАЛОВ в истории:" + msg_history_long_list,
-        reply_markup=types.InlineKeyboardMarkup().add(
-            types.InlineKeyboardButton(text='Назад',
-                                       callback_data='back_button')))
+async def to_view_all_favorites_channel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.view_all_channel_in_favorites)
 
 
-# Регистрируем хендлеры
-def register_handlers_user(dp: Dispatcher):
-    dp.register_message_handler(start_home, commands='home_page', state=None)
-    dp.register_callback_query_handler(personal_area_button, text='personal_area_button')
-    dp.register_callback_query_handler(call_back_button, state="*", text='back_button')
-    dp.register_callback_query_handler(call_activate_promo_button, text='activate_promo_code_button')
-    dp.register_callback_query_handler(call_cancel_button, state="*", text='cancel_button')
-    dp.register_message_handler(get_promo_and_give_credits, state=FSMUser.activate_promo)
-    dp.register_callback_query_handler(call_analysis_button, text='analysis_button')
-    dp.register_callback_query_handler(call_analysis_video_button, text='analysis_video_button')
-    dp.register_callback_query_handler(call_analysis_channel_button, text='analysis_channel_button')
-    dp.register_callback_query_handler(call_favorites_button, text='favorites_button')
-    dp.register_callback_query_handler(call_favorites_video_button, text='favorites_video_button')
-    dp.register_callback_query_handler(call_view_all_video_button, state=FSMUser.favorites_video,
-                                       text='view_all_video_button')
-    dp.register_callback_query_handler(call_add_video_in_favorites_button, state=FSMUser.favorites_video,
-                                       text='add_video_to_favorites_button')
-    dp.register_message_handler(get_url_video_and_add_to_favorites, state=FSMUser.add_video_in_favorites)
-    dp.register_callback_query_handler(call_delete_video_in_favorites_button, state=FSMUser.favorites_video,
-                                       text='delete_video_from_favorites_button')
-    dp.register_callback_query_handler(call_favorites_channel_button, text='favorites_channel_button')
-    dp.register_callback_query_handler(call_view_all_channel_button, state=FSMUser.favorites_channel,
-                                       text='view_all_channel_button')
-    dp.register_callback_query_handler(call_add_channel_in_favorites_button, state=FSMUser.favorites_channel,
-                                       text='add_channel_to_favorites_button')
-    dp.register_message_handler(get_url_channel_and_add_to_favorites, state=FSMUser.add_channel_in_favorites)
-    dp.register_callback_query_handler(call_delete_channel_in_favorites_button, state=FSMUser.favorites_channel,
-                                       text='delete_channel_from_favorites_button')
-    dp.register_callback_query_handler(help_button, text='help_button')
-    dp.register_callback_query_handler(history_button, text='history_button')
-    dp.register_callback_query_handler(call_history_video_button, text='history_video_button')
-    dp.register_callback_query_handler(call_view_all_video_history_button, state=FSMUser.history_video,
-                                       text='view_all_video_history_button')
-    dp.register_callback_query_handler(call_history_channel_button, text='history_channel_button')
-    dp.register_callback_query_handler(call_view_all_channel_history_button, state=FSMUser.history_channel,
-                                       text='view_all_channel_history_button')
+async def to_back_in_last_ten_favorites_channel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.favorites_channel)
+
+
+async def to_favorites_channel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.favorites_channel)
+
+
+# async def to_back_in_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+#     await manager.dialog().switch_to(DialogUser.favorites)
+
+
+async def get_data_last_ten_favorites_channel(dialog_manager: DialogManager, **kwargs):
+    check, user_id = get_authed_user_id(dialog_manager.event.from_user.id)
+    ten_favorites_channel = list(map(lambda x: f"https://www.youtube.com/c/{x}",
+                                     database.favorite.get_favorite_user_channels(user_id, True)))
+    return {
+        "text2": "У вас нет избранных каналов." if len(ten_favorites_channel) == 0 else "\n".join(
+            ten_favorites_channel),
+    }
+
+
+async def get_data_favorites_channel(dialog_manager: DialogManager, **kwargs):
+    check, user_id = get_authed_user_id(dialog_manager.event.from_user.id)
+    data = database.favorite.get_favorite_user_channels(user_id, False)
+    favorites_channel = list(map(lambda x: f"https://www.youtube.com/watch?v={x}",
+                                 data))
+    return {
+        "text4": "У вас нет избранных каналов." if len(favorites_channel) == 0 else "\n".join(favorites_channel),
+    }
+
+
+async def to_add_channel_in_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.add_channel_in_favorites)
+
+
+async def to_delete_channel_in_favorites(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.delete_channel_in_favorites)
+
+
+async def input_url_channel_to_add_in_favorites(m: Message, dialog: ManagedDialogAdapterProto,
+                                                manager: DialogManager):
+    check, user_id = authorization.get_authed_user_id(m.from_user.id)
+    url = m.text
+    # TODO: добавить проверку на user, channel в ссылку канала
+    if "https://www.youtube.com/c/" in url:
+        id = url.split('www.youtube.com/c/')[1]
+        if id in database.favorite.get_favorite_user_channels(user_id):
+            await m.answer(f"Этот канал уже в вашем избранном... ")
+        else:
+            database.favorite.add_favorite_user_channel(user_id, id)
+            await m.answer(f"Ваш канал добавлен в избранное!")
+        await manager.dialog().switch_to(DialogUser.favorites_channel)
+    else:
+        await m.answer(f"Это не похоже на ссылку... ")
+        await manager.dialog().switch_to(DialogUser.add_channel_in_favorites)
+
+
+async def input_url_channel_to_delete_in_favorites(m: Message, dialog: ManagedDialogAdapterProto,
+                                                   manager: DialogManager):
+    check, user_id = authorization.get_authed_user_id(m.from_user.id)
+    url = m.text
+    if "https://www.youtube.com/c/" in url:
+        id = url.split('www.youtube.com/c/')[1]
+        if id in database.favorite.get_favorite_user_channels(user_id):
+            database.favorite.delete_favorite_user_channel(user_id, id)
+            await m.answer(f"Ваш канал удален из избранного!")
+        else:
+            await m.answer(f"Этого канала нет в вашем избранном... ")
+        await manager.dialog().switch_to(DialogUser.favorites_channel)
+    else:
+        await m.answer(f"Это не похоже на ссылку... ")
+        await manager.dialog().switch_to(DialogUser.delete_channel_in_favorites)
+
+
+"""История"""
+
+
+async def to_history(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.history)
+
+
+"""История ВИДЕО"""
+
+
+async def get_data_history_video(dialog_manager: DialogManager, **kwargs):
+    check, user_id = authorization.get_authed_user_id(dialog_manager.event.from_user.id)
+    history = database.history.get_user_video_history(user_id)
+    return {
+        "text7": "У вас нет видео в истории." if len(history) == 0 else
+        "\n".join(list(map(lambda x: f"""
+            Ссылка на видео: https://www.youtube.com/watch?v={x.url}
+            Дата анализа: {x.viewing_date}
+        """, history))),
+    }
+
+
+async def get_data_last_ten_history_video(dialog_manager: DialogManager, **kwargs):
+    check, user_id = authorization.get_authed_user_id(dialog_manager.event.from_user.id)
+    history = database.history.get_user_video_history(user_id, True)
+    return {
+        "text5": "У вас нет видео в истории." if len(history) == 0 else
+        "\n".join(list(map(lambda x: f"""
+                Ссылка на видео: https://www.youtube.com/watch?v={x.url}
+                Дата анализа: {x.viewing_date}
+            """, history))),
+    }
+
+
+async def to_view_all_history_video(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.view_all_video_in_history)
+
+
+async def to_history_video(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.history_video)
+
+
+"""История КАНАЛОВ"""
+
+
+async def to_history_channel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.history_channel)
+
+
+async def to_view_all_history_channel(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.view_all_channel_in_history)
+
+
+async def get_data_history_channel(dialog_manager: DialogManager, **kwargs):
+    check, user_id = authorization.get_authed_user_id(dialog_manager.event.from_user.id)
+    history = database.history.get_user_channel_history(user_id)
+    return {
+        "text6": "У вас нет каналов в истории." if len(history) == 0 else
+        "\n".join(list(map(lambda x: f"""
+                Ссылка на канал: https://www.youtube.com/c/{x.channel_id}
+                Дата анализа: {x.viewing_date}
+            """, history))),
+    }
+
+
+async def get_data_last_ten_history_channel(dialog_manager: DialogManager, **kwargs):
+    check, user_id = authorization.get_authed_user_id(dialog_manager.event.from_user.id)
+    history = database.history.get_user_channel_history(user_id, True)
+    return {
+        "text8": "У вас нет каналов в истории." if len(history) == 0 else
+        "\n".join(list(map(lambda x: f"""
+                    Ссылка на канал: https://www.youtube.com/c/{x.channel_id}
+                    Дата анализа: {x.viewing_date}
+                """, history))),
+    }
+
+
+"""Помощь"""
+
+
+async def to_help(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.help)
+
+
+"""Выход"""
+
+
+async def to_exit(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.exit)
+
+
+async def to_yes(c: CallbackQuery, button: Button, manager: DialogManager):
+    authorization.sign_out(manager.event.from_user.id)
+    await manager.start(DialogSign.start)
+
+
+dialog_user = Dialog(
+    Window(
+        Const("Добро пожаловать на главую страницу!"),
+        Button(Const("Личный кабинет"), id="personal_area", on_click=to_personal_area),
+        # Button(Const("Проанализировать"), id="analyze", on_click=to_analyze),
+        Button(Const("Избранное"), id="favorites", on_click=to_favorites),
+        Button(Const("Помощь"), id="help", on_click=to_help),
+        Button(Const("История"), id="history", on_click=to_history),
+        Button(Const("Выход"), id="exit", on_click=to_exit),
+        state=DialogUser.home_page,
+    ),
+    Window(
+        Format(
+            "Личный кабинет."
+            "\nРоль: {role}"
+            "\nИмя: {name}"
+            "\nФамилия: {surname}"
+            "\nОтчество: {patronymic}"
+            "\nЭлектронная почта: {email}"
+            "\nНомер телефона: {phone}"
+            "\nКоличество энергии: {credits}"),
+        # TODO: редактирование информации пользователя
+        Button(Const("Активировать промокод"), id="activate_promo", on_click=to_activate_promo),
+        Button(Const("Изменить пароль"), id="change_passw", on_click=to_change_passw),
+        Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),
+        state=DialogUser.personal_area,
+        getter=get_data_personal_area,
+    ),
+    Window(
+        Const("Введите номер промокода."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(promo_handler),
+        state=DialogUser.activate_promo,
+    ),
+    Window(
+        Const("Для того, чтобы изменить пароль, введите старый пароль."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(input_old_passw_handler),
+        state=DialogUser.input_old_passw,
+    ),
+    Window(
+        Const("Теперь введите ваш новый пароль."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(input_new_passw_handler),
+        state=DialogUser.input_new_passw,
+    ),
+    Window(
+        Const("Какие избранные хотите просмотреть?"),
+        # TODO: вывод названия канала/видеоролика в избранном, и добавить отступы
+        Button(Const("Видео"), id="favorites_video", on_click=to_favorites_video),
+        Button(Const("Каналы"), id="favorites_channel", on_click=to_favorites_channel),
+        Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),
+        state=DialogUser.favorites,
+    ),
+    Window(
+        Format(
+            "Список 10 последних избранных видео:\n{text1}"),
+        Button(Const("Просмотреть всё"), id="view_all_favorites_video", on_click=to_view_all_favorites_video),
+        Button(Const("Добавить видео в избранное по ссылке"), id="add_video_in_favorites",
+               on_click=to_add_video_in_favorites),
+        Button(Const("Удалить видео из избранного по ссылке"), id="delete_video_in_favorites",
+               on_click=to_delete_video_in_favorites),
+        Button(Const("Назад"), id="back_in_favorites", on_click=to_favorites),
+        getter=get_data_last_ten_favorites_video,
+        state=DialogUser.favorites_video,
+    ),
+    Window(
+        Format("Список избранных видео:\n{text3}"),
+        Button(Const("Назад"), id="back_in_last_ten_favorites_video", on_click=to_back_in_last_ten_favorites_video),
+        getter=get_data_favorites_video,
+        state=DialogUser.view_all_video_in_favorites,
+    ),
+    Window(
+        Const("Введите URL видео которое хотите добавить."),
+        Button(Const("Отмена"), id="back_in_last_ten_favorites_video", on_click=to_back_in_last_ten_favorites_video),
+        MessageInput(input_url_video_to_add_in_favorites),
+        state=DialogUser.add_video_in_favorites,
+    ),
+    Window(
+        Const("Введите URL видео которое хотите удалить."),
+        Button(Const("Отмена"), id="back_in_last_ten_favorites_video", on_click=to_back_in_last_ten_favorites_video),
+        MessageInput(input_url_video_to_delete_in_favorites),
+        state=DialogUser.delete_video_in_favorites,
+    ),
+    Window(
+        Format("Список 10 последних избранных каналов:\n{text2}"),
+        Button(Const("Просмотреть всё"), id="view_all_favorites_channel", on_click=to_view_all_favorites_channel),
+        Button(Const("Добавить каналов в избранное по ссылке"), id="add_channel_in_favorites",
+               on_click=to_add_channel_in_favorites),
+        Button(Const("Удалить канал из избранного по ссылке"), id="delete_channel_in_favorites",
+               on_click=to_delete_channel_in_favorites),
+        Button(Const("Назад"), id="back_in_favorites", on_click=to_favorites),
+        getter=get_data_last_ten_favorites_channel,
+        state=DialogUser.favorites_channel,
+    ),
+    Window(
+        Format("Список избранных каналов:\n{text4}"),
+        Button(Const("Назад"), id="back_in_last_ten_favorites_channel", on_click=to_back_in_last_ten_favorites_channel),
+        getter=get_data_favorites_channel,
+        state=DialogUser.view_all_channel_in_favorites,
+    ),
+    Window(
+        Const("Введите URL канала которое хотите добавить."),
+        Button(Const("Отмена"), id="back_in_last_ten_favorites_channel",
+               on_click=to_back_in_last_ten_favorites_channel),
+        MessageInput(input_url_channel_to_add_in_favorites),
+        state=DialogUser.add_channel_in_favorites,
+    ),
+    Window(
+        Const("Введите URL канала которое хотите удалить."),
+        Button(Const("Отмена"), id="back_in_last_ten_favorites_channel",
+               on_click=to_back_in_last_ten_favorites_channel),
+        MessageInput(input_url_channel_to_delete_in_favorites),
+        state=DialogUser.delete_channel_in_favorites,
+    ),
+    Window(
+        Const("Какую историю хотите просмотреть?"),
+        # TODO: вывод названия канала/видеоролика в избранном
+        Button(Const("Видео"), id="history_video", on_click=to_history_video),
+        Button(Const("Каналы"), id="history_channel", on_click=to_history_channel),
+        Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),
+        state=DialogUser.history,
+    ),
+    Window(
+        Format("Список 10 последних видео в истории:\n{text5}"),
+        Button(Const("Просмотреть всё"), id="view_all_history_video", on_click=to_view_all_history_video),
+        Button(Const("Назад"), id="history", on_click=to_history),
+        getter=get_data_last_ten_history_video,
+        state=DialogUser.history_video,
+    ),
+    Window(
+        Format("Список истории видео:\n{text7}"),
+        Button(Const("Назад"), id="history_video", on_click=to_history_video),
+        getter=get_data_history_video,
+        state=DialogUser.view_all_video_in_history,
+    ),
+    Window(
+        Format("Список 10 последних каналов в истории:\n{text6}"),
+        Button(Const("Просмотреть всё"), id="view_all_history_channel", on_click=to_view_all_history_channel),
+        Button(Const("Назад"), id="history", on_click=to_history),
+        getter=get_data_history_channel,
+        state=DialogUser.history_channel,
+    ),
+    Window(
+        Format("Список истории каналов:\n{text8}"),
+        Button(Const("Назад"), id="history_channel", on_click=to_history_channel),
+        getter=get_data_last_ten_history_channel,
+        state=DialogUser.view_all_channel_in_history,
+    ),
+    Window(
+        Const("Данный бот может:"
+              "\n1. ----------"
+              "\n2. ----------"
+              "\n3. ----------"
+              "\nКоманды для бота:"
+              "\n/start - запуск бота"
+              "\nКоманды для быстрого перемещения:"
+              "\n/home page - домашняя страница (главная)"
+              "\n/analysis - анализ"
+              "\n/favorites - избранные URL"
+              "\n/history - история запросов"),
+        Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),
+        state=DialogUser.help,
+    ),
+    # Window(
+    #     # TODO: сделать отображение настроек
+    #     Const("Тут будет просмотр глобальных настроек"),
+    #     Button(Const("Назад"), id="back_in_home_page", on_click=to_back_in_home_page),
+    #     state=DialogUser.settings,
+    # ),
+    Window(
+        Const("Вы уверены что хотите выйти?"),
+        Button(Const("Да"), id="yes", on_click=to_yes),
+        Button(Const("Нет"), id="back_in_home_page", on_click=to_back_in_home_page),
+        state=DialogUser.exit,
+    )
+)
+
+
+# async def settings(m: Message, dialog_manager: DialogManager):
+#     # it is important to reset stack because user wants to restart everything
+#     await dialog_manager.switch_to(DialogUser.settings)
