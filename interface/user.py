@@ -62,8 +62,8 @@ async def to_personal_area(c: CallbackQuery, button: Button, manager: DialogMana
 async def get_data_personal_area(dialog_manager: DialogManager, **kwargs):
     telegram_id = dialog_manager.event.from_user.id
     user_id = get_authed_user_id(telegram_id)[1]
-    user_role = get_user_role(user_id).name
     user_personal_area = get_user_cabinet(user_id)
+    user_role = get_user_role(user_id).name
     # dialog_data = dialog_manager.current_context().dialog_data
     return {
         "role": user_role,

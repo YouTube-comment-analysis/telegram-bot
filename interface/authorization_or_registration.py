@@ -115,7 +115,7 @@ async def password_handler(m: Message, dialog: ManagedDialogAdapterProto,
 # Для регистрации
 async def log_handler(m: Message, dialog: ManagedDialogAdapterProto,
                       manager: DialogManager):
-    if get_login_exists(m.text) == False:
+    if not get_login_exists(m.text):
         global login
         login = m.text
         await dialog.next()
@@ -139,6 +139,7 @@ async def return_password_handler(m: Message, dialog: ManagedDialogAdapterProto,
         global return_password
         return_password = m.text
         sign_up(info, UserRole.user, login, return_password)
+        sign_in(login, m.text, m.from_user.id)
         await dialog.next()
     else:
         await m.answer("Что-то пошло не так.. Ваш повторный пароль не совпадает с предыдущим.")
