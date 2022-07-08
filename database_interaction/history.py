@@ -1,11 +1,10 @@
 from datetime import datetime
 from database_interaction.db_connection import connection
-from database_interaction.favorite import FavoriteChannel, FavoriteVideo
 
 
-class HistoryChannel(FavoriteChannel):
+class HistoryChannel:
     def __init__(self, channel_id: str, viewing_date: datetime):
-        FavoriteChannel.__init__(self, channel_id)
+        self.channel_id = channel_id
         self.viewing_date = viewing_date
 
 
@@ -20,7 +19,7 @@ FROM
 public.history_channel;
 ORDER BY viewing_date DESC
             """)
-            return map(lambda x: HistoryChannel(x[0], x[1]), curs)
+            return list(map(lambda x: HistoryChannel(x[0], x[1]), curs))
 
 
 def get_user_channel_history(user_id: int, limited: bool = False) -> [HistoryChannel]:
@@ -33,13 +32,13 @@ channel_url, viewing_date
 FROM public.history_channel
 WHERE user_id = %s
 ORDER BY viewing_date DESC
-            """ + ' LIMIT 10' if limited else '', (user_id,))
-            return map(lambda x: HistoryChannel(x[0], x[1]), curs)
+            """ + (' LIMIT 10' if limited else ' '), (user_id,))
+            return list(map(lambda x: HistoryChannel(x[0], x[1]), curs))
 
 
-class HistoryVideo(FavoriteVideo):
+class HistoryVideo:
     def __init__(self, url: str, viewing_date: datetime):
-        FavoriteVideo.__init__(self, url)
+        self.url = url
         self.viewing_date = viewing_date
 
 
@@ -52,7 +51,7 @@ SELECT
 url, viewing_date
 FROM public.history_video
             """)
-            return map(lambda x: HistoryVideo(x[0], x[1]), curs)
+            return list(map(lambda x: HistoryVideo(x[0], x[1]), curs))
 
 
 def get_user_video_history(user_id: int, limited: bool = False) -> [HistoryVideo]:
@@ -64,5 +63,5 @@ SELECT
 url, viewing_date
 FROM public.history_video
 WHERE user_id = %s
-            """ + ' LIMIT 10' if limited else '', (user_id,))
-            return map(lambda x: HistoryVideo(x[0], x[1]), curs)
+            """ + (' LIMIT 10' if limited else ' '), (user_id,))
+            return list(map(lambda x: HistoryVideo(x[0], x[1]), curs))

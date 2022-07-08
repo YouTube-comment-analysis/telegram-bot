@@ -2,32 +2,48 @@ from aiogram_dialog.manager.protocols import ManagedDialogAdapterProto
 from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.text import Const
-from aiogram.dispatcher.filters.state import StatesGroup, State
 from aiogram.types import Message, CallbackQuery
+
+import authorization
 from authorization_process.auth import sign_in, sign_up
 from database_interaction.auth import get_login_exists
 from database_interaction.user import UserCabinet, UserRole
 from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 
-from interface.user import DialogUser
+from interface.FSM import DialogSign, DialogUser
 
-
-class DialogSign(StatesGroup):
-    start = State()  # состояния для начального входа в программу
-    input_name = State()
-    input_surname = State()
-    input_patronymic = State()
-    input_phone = State()
-    input_email = State()
-    input_log_reg = State()
-    input_passw_reg = State()
-    return_input_passw_reg = State()
-    registration_status = State()
-    input_login_auth = State()
-    input_password_auth = State()
-    login_status = State()
-    home_page = State()
-
+# class DialogSign(StatesGroup):
+#     start = State()  # состояния для начального входа в программу
+#     input_name = State()
+#     input_surname = State()
+#     input_patronymic = State()
+#     input_phone = State()
+#     input_email = State()
+#     input_log_reg = State()
+#     input_passw_reg = State()
+#     return_input_passw_reg = State()
+#     registration_status = State()
+#     input_login_auth = State()
+#     input_password_auth = State()
+#     login_status = State()
+#     home_page = State()
+#
+#
+# class DialogUser(StatesGroup):
+#     home_page = State()
+#     personal_area = State()
+#     activate_promo = State()
+#     input_old_passw = State()
+#     input_new_passw = State()
+#     # состояния для анализа
+#     favorites = State()
+#     favorites_video = State()
+#     favorites_channel = State()
+#     view_all_video_in_favorites = State()
+#     add_video_in_favorites = State()
+#     delete_video_in_favorites = State()
+#     # еще куча каких то состояний
+#     exit = State()
 
 info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
 login = None
@@ -92,7 +108,7 @@ async def password_handler(m: Message, dialog: ManagedDialogAdapterProto,
     if sign_in(login, m.text, m.from_user.id):
         await dialog.next()
     else:
-        await m.answer("Ваш пароль неверный. Повторите.")
+        await m.answer("Что-то пошло не так...\nВозможные проблемы:\nваш пароль неверный\nпользователь уже онлайн.")
         await manager.dialog().switch_to(DialogSign.input_password_auth)
 
 
@@ -215,6 +231,7 @@ dialog_start = Dialog(
         state=DialogSign.input_password_auth,
     ),
     Window(
+        # TODO: убрать это
         Const("Вход выполнен!"),
         Button(Const("ОК"), id="ok", on_click=to_ok),
         state=DialogSign.login_status,
