@@ -46,7 +46,7 @@ SELECT EXISTS(
 
 
 def get_user_id(login: str) -> int:
-    """Получить user_id пол логину пользователя. **Только при успешной авторизации**"""
+    """Получить user_id по логину пользователя. **Только при успешной авторизации**"""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute("""

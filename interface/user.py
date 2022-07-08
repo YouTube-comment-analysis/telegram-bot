@@ -20,7 +20,8 @@ class DialogUser(StatesGroup):
     home_page = State()
     personal_area = State()
     activate_promo = State()
-    change_passw = State()
+    input_old_passw = State()
+    input_new_passw = State()
 
     # analysis_video = State()
     # analysis_channel = State()
@@ -78,15 +79,31 @@ async def to_cancel(c: CallbackQuery, button: Button, manager: DialogManager):
 
 
 async def to_change_passw(c: CallbackQuery, button: Button, manager: DialogManager):
-    await manager.dialog().switch_to(DialogUser.change_passw)
+    await manager.dialog().switch_to(DialogUser.input_old_passw)
 
 
 old_passw = None
 
-# async def input_old_passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
-#                                   manager: DialogManager):
-#     old_passw = m.text
-#     await manager.dialog().switch_to(DialogUser.activate_promo)
+
+async def input_old_passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                                  manager: DialogManager):
+    global old_passw
+    old_passw = m.text
+    await manager.dialog().switch_to(DialogUser.input_new_passw)
+
+
+async def input_new_passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
+                                  manager: DialogManager):
+    if change_password(m.from_user.id, old_passw, m.text):
+        await m.answer(f"Пароль изменен!")
+        await manager.dialog().switch_to(DialogUser.personal_area)
+    else:
+        await m.answer(f"Вы неправильно ввели ваш старый пароль.")
+        await manager.dialog().switch_to(DialogUser.input_old_passw)
+
+
+async def to_back(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.home_page)
 
 
 dialog_user = Dialog(
@@ -112,7 +129,7 @@ dialog_user = Dialog(
             "\nКоличество энергии: {credits}"),
         Button(Const("Активировать промокод"), id="activate_promo", on_click=to_activate_promo),
         Button(Const("Изменить пароль"), id="change_passw", on_click=to_change_passw),
-        # Button(Const("Назад"), id="back", on_click=to_back),
+        Button(Const("Назад"), id="back", on_click=to_back),
         state=DialogUser.personal_area,
         getter=get_data_personal_area,
     ),
@@ -123,17 +140,17 @@ dialog_user = Dialog(
         state=DialogUser.activate_promo,
     ),
     Window(
-        Const("Для того, чтобы изменить пароль, повторите старый пароль."),
+        Const("Для того, чтобы изменить пароль, введите старый пароль."),
         Button(Const("Отмена"), id="cancel", on_click=to_cancel),
         MessageInput(input_old_passw_handler),
-        state=DialogUser.change_passw,
+        state=DialogUser.input_old_passw,
+    ),
+    Window(
+        Const("Теперь введите ваш новый пароль."),
+        Button(Const("Отмена"), id="cancel", on_click=to_cancel),
+        MessageInput(input_new_passw_handler),
+        state=DialogUser.input_new_passw,
     )
-    # Window(
-    #     Const("Теперь введите ваш номер телефона.\nПожалуйста используйте данный формат: 79123456789"),
-    #     Button(Const("Отмена"), id="cancel", on_click=to_cancel),
-    #     MessageInput(phone_handler),
-    #     state=DialogSign.input_phone,
-    # ),
     # Window(
     #     Const("Осталось ввести вашу электронную почту."),
     #     Button(Const("Отмена"), id="cancel", on_click=to_cancel),
