@@ -1,5 +1,6 @@
 class Comment:
-    def __init__(self, video_url=None, text=None, date=None, is_reply=None, votes=None):
+    def __int__(self, id, video_url, text, date, is_reply, votes):
+        self.id = id
         self.video_url = video_url
         self.text = text
         self.date = date
