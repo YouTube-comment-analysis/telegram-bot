@@ -30,3 +30,4 @@ def drop_arr_from_storage(telegram_id: str):
     if check_arr_in_storage(telegram_id):
         storage.pop(telegram_id)
 
+

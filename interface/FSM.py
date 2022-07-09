@@ -15,7 +15,6 @@ class DialogSign(StatesGroup):
     input_login_auth = State()
     input_password_auth = State()
     login_status = State()
-    home_page = State()
 
 
 class DialogUser(StatesGroup):
@@ -35,8 +34,9 @@ class DialogUser(StatesGroup):
     analysis_param = State()
     analysis_db = State()
     downoland_comments = State()
-    # not_pump_up = State()
-    # pump_up = State()
+    choose_analysis = State()
+    analysis_world_cloud = State()
+    add_photo_png = State()
     # состояния для избранного
     favorites = State()
     favorites_video = State()

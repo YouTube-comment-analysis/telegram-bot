@@ -204,7 +204,7 @@ dialog_start = Dialog(
     ),
     Window(
         Const("Ваша регистрация завершена!"),
-        Button(Const("ОК"), id="ok", on_click=to_ok),
+        Button(Const("ОК"), id="okey", on_click=to_ok),
         state=DialogSign.registration_status,
     ),
     Window(
@@ -222,7 +222,7 @@ dialog_start = Dialog(
     Window(
         # TODO: убрать это
         Const("Вход выполнен!"),
-        Button(Const("ОК"), id="ok", on_click=to_ok),
+        Button(Const("ОК"), id="okey", on_click=to_ok),
         state=DialogSign.login_status,
     )
 )

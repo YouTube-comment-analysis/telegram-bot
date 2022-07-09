@@ -1,4 +1,5 @@
 import operator
+import threading
 from datetime import date, datetime
 from threading import Thread
 
@@ -114,11 +115,14 @@ async def to_analysis_param(c: CallbackQuery, button: Button, manager: DialogMan
     await manager.dialog().switch_to(DialogUser.analysis_param)
 
 
-async def to_cancel_downoload(c: CallbackQuery, button: Button, manager: DialogManager):
-    global is_stop_download_comments
-    is_stop_download_comments = True
-    # TODO: тут он должен после смены флага стопорнуться
-    await manager.dialog().switch_to(DialogUser.analysis)
+# is_stop_download_comments = False
+
+
+# async def to_cancel_downoload(c: CallbackQuery, button: Button, manager: DialogManager):
+#     global is_stop_download_comments
+#     is_stop_download_comments = True
+#     # TODO: тут он должен после смены флага стопорнуться
+#     await manager.dialog().switch_to(DialogUser.analysis)
 
 
 popular_or_no = None  # 1 - по популярности, '2' - по времени
@@ -133,6 +137,10 @@ import asyncio
 #     await manager.dialog().switch_to(DialogUser.downoland_comments)
 #     """Для загрузки кросбара"""
 #     asyncio.create_task(background(c, manager.bg()))
+
+
+async def to_back_in_param(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.analysis_param)
 
 
 async def to_analysis_db(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -150,8 +158,65 @@ async def to_analysis_db(c: CallbackQuery, button: Button, manager: DialogManage
             await manager.dialog().switch_to(DialogUser.analysis_param)
     else:
         await manager.dialog().switch_to(DialogUser.downoland_comments)
-        # """Для загрузки кросбара"""
-        # asyncio.create_task(background(c, manager.bg()))
+        """Для загрузки кросбара"""
+        asyncio.create_task(background(c, manager.bg()))
+
+
+async def to_not_pump_up(c: CallbackQuery, button: Button, manager: DialogManager):
+    order_by_date = False if popular_or_no == 1 else True
+    arr = database.comment.extract_comments(
+        input_url.split('https://www.youtube.com/watch?v=')[1], order_by_date)
+    # TODO: Максим доделай
+    # array_storage.add_arr_to_storage(manager.event.from_user.id, arr)
+    await manager.dialog().switch_to(DialogUser.choose_analysis)
+
+
+async def to_download(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.downoland_comments)
+    """Для загрузки кросбара"""
+    asyncio.create_task(background(c, manager.bg()))
+
+
+input_url: str = None
+
+
+async def background(c: CallbackQuery, manager: BaseDialogManager):
+    global input_url
+    url = input_url.split('https://www.youtube.com/watch?v=')[1]
+    channel_id = search.get_chanel_url_by_video(input_url).split('https://www.youtube.com/')[1]
+    in_popular_order = True if popular_or_no == 1 else False
+    comments = []
+    max_comment = database.global_settings.get_global_setting(Settings.max_comments)
+    if investment_or_not == '1':
+        total_count = search.get_video_comments_count(input_url)
+    else:
+        total_count = round(search.get_video_comments_count(input_url) * 0.66)
+    count_downloader = 0
+    if total_count > max_comment:
+        total_count = max_comment
+    for comment in search.get_comments_from_video(input_url, is_sort_by_recent_needed=not in_popular_order):
+        # if is_stop_download_comments:
+        #     await manager.switch_to(DialogUser.analysis)
+        #     # await dialog_manager.dialog().switch_to(DialogUser.analysis)
+        #     return
+        # el
+        if count_downloader > max_comment:
+            break
+        else:
+            count_downloader += 1
+            if count_downloader % (round(total_count / 10)) == 0:
+                await asyncio.sleep(1)
+                await manager.update({"progress": count_downloader * 100 / total_count, })
+            comments.append(comment)
+    await asyncio.sleep(0.5)
+    await manager.switch_to(DialogUser.choose_analysis)
+
+    # await manager.done()
+
+    def load_to_db_thread(video_id: str, channel_id: str, comment: [Comment], in_popular: bool):
+        database.comment.reload_comments(video_id, channel_id, comment, in_popular)
+
+    threading.Thread(target=load_to_db_thread, args=(url, channel_id, comments, in_popular_order)).start()
 
 
 async def get_data_max_count_comments(dialog_manager: DialogManager, **kwargs):
@@ -160,6 +225,14 @@ async def get_data_max_count_comments(dialog_manager: DialogManager, **kwargs):
     return {
         "max_count_comments": max_com,
     }
+
+
+async def to_add_photo_png(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.switch_to(DialogUser.add_photo_png)
+
+
+async def to_choose_analysis(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.switch_to(DialogUser.choose_analysis)
 
 
 async def to_analysis_video(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -220,9 +293,6 @@ async def get_data_count_downolader(dialog_manager: DialogManager, **kwargs):
     }
 
 
-input_url: str = None
-
-
 async def input_url_video_to_analysis(m: Message, dialog: ManagedDialogAdapterProto,
                                       manager: DialogManager):
     # TODO: MAXIM/ILIYA получение url видео для анализа, сделать проверку на то видео ли это
@@ -262,6 +332,17 @@ async def on_analysis_second_date_selected(c: CallbackQuery, widget, manager: Di
     else:
         await manager.answer(f"Неверные даты.")
         await manager.dialog().switch_to(DialogUser.analysis_first_date_selected)
+
+
+async def to_analysis_world_cloud(c: CallbackQuery, button: Button, manager: DialogManager):
+    await manager.dialog().switch_to(DialogUser.analysis_world_cloud)
+
+
+async def input_photo_png(m: Message, dialog: ManagedDialogAdapterProto,
+                                        manager: DialogManager):
+    input_url = m.text
+    await manager.dialog().switch_to(DialogUser.analysis_first_date_selected)
+
 
 
 """Избранное"""
@@ -661,8 +742,8 @@ dialog_user = Dialog(
         Format("Данные в БД: {have_db}"
                "\nСамое позднее обновление - {date}"
                "\nНужно ли докачивать комментарии?"),
-        # Button(Const("Не нужно"), id="not_pump_up", on_click=to_not_pump_up),
-        # Button(Const("Нужно"), id="download", on_click=to_download),
+        Button(Const("Не нужно"), id="not_pump_up", on_click=to_not_pump_up),
+        Button(Const("Нужно"), id="download", on_click=to_download),
         Button(Const("Назад"), id="analysis_param", on_click=to_analysis_param),
         getter=get_data_db_downolader,
         state=DialogUser.analysis_db,
@@ -672,9 +753,36 @@ dialog_user = Dialog(
             Const("Выполняется загрузка комментариев, пожалуйста подождите..."),
             Progress("progress", 10),
         ),
-        Button(Const("Отмена"), id="cancel_downoload", on_click=to_cancel_downoload),
+        # Button(Const("Я работаю но это не точно..\nОтмена"), id="cancel_downoload", on_click=to_cancel_downoload),
         getter=get_data_count_downolader,
         state=DialogUser.downoland_comments,
+    ),
+    Window(
+        Const("Скачано: {n} комментариев за {f} время.\nВыберите вид анализа"),
+        Button(Const("Облако слов (WorldCloud)"), id="analysis_world_cloud", on_click=to_analysis_world_cloud),
+        # Button(Const("Канал"), id="analysis_channel", on_click=to_analysis_channel),
+        Button(Const("Назад к выбору параметров"), id="back_in_param", on_click=to_back_in_param),
+        state=DialogUser.choose_analysis,
+        # getter=get_data_max_count_comments,
+    ),
+    Window(
+        Const(
+            "Мы научились делать облако слов такой же формы, какой будет форма на фотографии, вам нужно ее отправить в .png."
+            "\nХотите использовать данную функцию?"),
+        Button(Const("Да"), id="add_photo_png", on_click=to_add_photo_png),
+        # Button(Const("Нет"), id="result_world_cloud", on_click=to_result_world_cloud),
+        Button(Const("Назад"), id="back_in_choose_analysis", on_click=to_choose_analysis),
+        state=DialogUser.analysis_world_cloud,
+    ),
+    Window(
+        Const(
+            "Вставьте картинку, для лучшего результата нужно использовать светлую фотографию.\nНужный формат: .png"
+            "\nХотите использовать данную функцию?"),
+        # TODO: Доделать метод с получением фото от пользователя
+        # type=ContentType.PHOTO,
+        MessageInput(input_photo_png),
+        # Button(Const("Отмена"), id="back_in_choose_analysis", on_click=to_choose_analysis),
+        state=DialogUser.add_photo_png,
     ),
     Window(
         Const("Какие избранные хотите просмотреть?"),
