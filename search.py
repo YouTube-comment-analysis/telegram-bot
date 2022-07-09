@@ -7,7 +7,7 @@ from aiogram.utils import json
 from youtubesearchpython import ChannelsSearch
 import requests
 
-from comment import Comment
+from comment_scrapping.comment import Comment
 
 SESSION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'
 
@@ -67,8 +67,9 @@ def get_video_comments_count(url):
             'continuation': token}
 
     response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+    js = response.json()
 
-    return int(response.text.split('"text": "')[1].split('"')[0].replace(' ',''))
+    return int(js['onResponseReceivedEndpoints'][0]['reloadContinuationItemsCommand']['continuationItems'][0]['commentsHeaderRenderer']['countText']['runs'][0]['text'].replace(r' ',''))#int(response.text.split('"text": "')[1].split('"')[0].replace(' ',''))
 
 
 def remove_dublicats(list):
@@ -94,7 +95,7 @@ def get_comment_from_comment_data(json):
 
     time_text = json['publishedTimeText']['runs'][0][
         'text']
-    comment.date = str(dateparser.parse(time_text.split('(')[0].strip()).date())
+    comment.date = dateparser.parse(time_text.split('(')[0].strip()).date()
 
     if 'voteCount' in json:
         comment.votes = json['voteCount']['simpleText']
@@ -102,6 +103,17 @@ def get_comment_from_comment_data(json):
         comment.votes = 0
 
     return comment
+
+
+def get_post_response(url, session, context, token, key):
+    data = {'context': context, 'continuation': token}
+    for i in range(5):
+        response = session.post(url, params={'key': key}, json=data)
+        if response.status_code == 200:
+            break
+        time.sleep(20)
+
+    return response
 
 
 def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_needed=True):
@@ -113,17 +125,16 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_nee
     ytcfg = json.loads(re.search(r'ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;', response.text).group(1))
     context = ytcfg['INNERTUBE_CONTEXT']
     token = response.text.split('continuationCommand":{"token":"')[1].split('"')[0]
-    data = {'context': context, 'continuation': token}
 
-    response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+    response = get_post_response('https://www.youtube.com/youtubei/v1/next', session, context,token,key)
     js = response.json()
 
     if is_sort_by_recent_needed:
         token = js['onResponseReceivedEndpoints'][0]['reloadContinuationItemsCommand']['continuationItems'][0]\
             ['commentsHeaderRenderer']['sortMenu']['sortFilterSubMenuRenderer']['subMenuItems'][1]['serviceEndpoint']\
             ['continuationCommand']['token']
-        data = {'context': context, 'continuation': token}
-        response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+
+        response = get_post_response('https://www.youtube.com/youtubei/v1/next', session, context, token, key)
         js = response.json()
 
     is_end = False
@@ -137,7 +148,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_nee
             if 'continuationItemRenderer' not in comment_data:
                 comment = get_comment_from_comment_data(comment_data['commentThreadRenderer']['comment']['commentRenderer'])
                 comment.is_reply = False
-                comment.video_url = url
+                comment.video_url = url.split('watch?v=')[1]
                 yield comment
 
                 if are_replies_needed:
@@ -146,8 +157,7 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_nee
                                       ['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token'])
 
         for token in tokens:
-            data = {'context': context, 'continuation': token}
-            response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+            response = get_post_response('https://www.youtube.com/youtubei/v1/next', session, context, token, key)
             new_js = response.json()
 
             if 'continuationItems' in new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']:
@@ -158,22 +168,20 @@ def get_comments_from_video(url, is_sort_by_recent_needed=False, are_replies_nee
                         if 'commentRenderer' in comment_data:
                             comment = get_comment_from_comment_data(comment_data['commentRenderer'])
                             comment.is_reply = True
-                            comment.video_url = url
+                            comment.video_url = url.split('watch?v=')[1]
                             yield comment
 
                     last_comment_data = new_js['onResponseReceivedEndpoints'][0]['appendContinuationItemsAction']['continuationItems'][-1]
                     if 'commentRenderer' not in last_comment_data:
                         sub_token = last_comment_data['continuationItemRenderer']['button']['buttonRenderer']['command']['continuationCommand']['token']
-                        data = {'context': context, 'continuation': sub_token}
-                        response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+                        response = get_post_response('https://www.youtube.com/youtubei/v1/next', session, context, sub_token, key)
                         new_js = response.json()
                         is_sub_end = False
 
         last_comment_data = js['onResponseReceivedEndpoints'][index][continuation_name]['continuationItems'][-1]
         if 'continuationItemRenderer' in last_comment_data:
             token = last_comment_data['continuationItemRenderer']['continuationEndpoint']['continuationCommand']['token']
-            data = {'context': context, 'continuation': token}
-            response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
+            response = get_post_response('https://www.youtube.com/youtubei/v1/next', session, context, token, key)
             js = response.json()
             is_end = False
 
@@ -233,5 +241,12 @@ def get_list_of_channel_videos_with_additional_information(channel_url, start_da
         print(str(len(dic_list)) + "/" + str(len(video_urls)))
     print(len(dic_list))
 
+
+def get_chanel_url_by_video(video_url):
+    resource = requests.get(video_url)
+    return resource.text.split('link itemprop="name" content="')[1].split('"')[0]
+
+
+#print(get_chanel_url_by_video('https://www.youtube.com/watch?v=UedTcufyrHc'))
 #get_list_of_channel_videos_with_additional_information('https://www.youtube.com/channel/UCvmPqx1L8OQByKXZsgQKGOQ/videos', datetime.date(2021,9,2),datetime.date(2021,9,2))
 
