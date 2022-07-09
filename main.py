@@ -1,3 +1,6 @@
+from __future__ import print_function
+import io
+from comment_download import YoutubeCommentDownloader
 import asyncio
 import logging
 import os.path

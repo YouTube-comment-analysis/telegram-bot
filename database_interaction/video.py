@@ -5,13 +5,14 @@ from database_interaction.db_connection import connection
 
 def insert_video(channel_id: str, video_id: str):
     """Добавить видео в базу"""
-    with connection as connect:
-        with connect.cursor() as curs:
-            curs.execute("""
-INSERT INTO 
-public.video(url, channel_url, last_scrap_date)
-VALUES (%s, %s, current_timestamp)
-            """, (video_id, channel_id))
+    if not video_exists(video_id):
+        with connection as connect:
+            with connect.cursor() as curs:
+                curs.execute("""
+    INSERT INTO 
+    public.video(url, channel_url)
+    VALUES (%s, %s)
+                """, (video_id, channel_id))
 
 
 class ScrapBy(enum.Enum):
