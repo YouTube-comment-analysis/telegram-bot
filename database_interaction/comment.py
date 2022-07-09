@@ -68,6 +68,31 @@ SELECT EXISTS(
     return count
 
 
+def reload_comments(video_id: str, channel_id: str, comments: [Comment], in_popular_order: bool) -> int:
+    """**Загрузить **ВСЕ** комментарии к видео**
+       :param in_popular_order Комментарии отсортированы по популярности? Иначе индексу популярности будет присвоено max int
+       :param video_id Видео
+       :param comments: Массив комментариев
+       :return Сколько комментариев было загружено
+    """
+    insert_channel(channel_id)
+    insert_video(channel_id, video_id)
+    delete_comments(video_id)
+    with connection as connect:
+        with connect.cursor() as curs:
+            count = 1
+            for row in comments:
+                popular = count if in_popular_order else 2147483646
+                curs.execute("""
+INSERT INTO public.commentary(
+    url, text, writing_date, likes, popular_order, is_reply, comment_id)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (video_id, row.text, row.date, row.votes,
+                      popular, row.is_reply, row.id))
+                count += 1
+    update_scrap_date(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date, datetime.datetime.now())
+    return count
+
 
 def delete_comments(video_id: str):
     """Удалить **все** комментарии под видео"""
