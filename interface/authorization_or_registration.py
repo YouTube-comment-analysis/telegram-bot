@@ -4,12 +4,14 @@ from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.text import Const
 from aiogram.types import Message, CallbackQuery
 
+import authorization
 from authorization_process.auth import sign_in, sign_up
 from database_interaction.auth import get_login_exists
 from database_interaction.user import UserCabinet, UserRole
 from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 
 from interface.FSM import DialogSign, DialogUser
+from check_input_data import CheckInputData
 
 info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
 login = None
@@ -23,33 +25,53 @@ async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
 
 async def name_handler(m: Message, dialog: ManagedDialogAdapterProto,
                        manager: DialogManager):
-    info.first_name = m.text
-    await m.answer(f"Приятно познакомиться, {m.text}.")
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.first_name = m.text
+        await m.answer(f"Приятно познакомиться, {m.text}.")
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_name)
 
 
 async def surname_handler(m: Message, dialog: ManagedDialogAdapterProto,
                           manager: DialogManager):
-    info.last_name = m.text
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.last_name = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_surname)
 
 
 async def patronymic_handler(m: Message, dialog: ManagedDialogAdapterProto,
                              manager: DialogManager):
-    info.middle_name = m.text
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.middle_name = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_patronymic)
 
 
 async def phone_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
-    info.phone = m.text
-    await dialog.next()
+    if CheckInputData.phone_number(m.text):
+        info.phone = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Номер телефона должен вводиться с 79_________ , а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_phone)
 
 
 async def email_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
-    info.email = m.text
-    await dialog.next()
+    if CheckInputData.email(m.text):
+        info.email = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Пример правильной почты xxxx@domen.com , а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_email)
 
 
 async def to_sign_in(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -208,4 +230,5 @@ dialog_start = Dialog(
 
 async def start(m: Message, dialog_manager: DialogManager):
     # it is important to reset stack because user wants to restart everything
+    authorization.sign_out(m.from_user.id)
     await dialog_manager.start(DialogSign.start, mode=StartMode.RESET_STACK)

@@ -47,7 +47,7 @@ def get_scrap_date(video_id: str, scrap_by: ScrapBy) -> int:
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT {scrap_by.value[0]}
+SELECT """ + (scrap_by.value[0]) + """
 FROM public.video
 WHERE url = %s
             """, (video_id,))
@@ -60,7 +60,7 @@ def get_scrap_count(video_id: str, scrap_by: ScrapBy) -> int:
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT {scrap_by.value[1]}
+SELECT """ + (scrap_by.value[1]) + """
 FROM public.video
 WHERE url = %s
             """, (video_id,))
@@ -96,3 +96,11 @@ SELECT EXISTS(
 )
             """, (video_id,))
             return curs.fetchone()[0]
+
+
+def have_video_comments(video_id: str, scrap: str) -> bool:
+    if video_exists(video_id):
+        data = get_scrap_count(video_id, scrap)
+        if data > 0:
+            return True
+    return False
