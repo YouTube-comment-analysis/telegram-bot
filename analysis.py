@@ -5,7 +5,6 @@ from datetime import date
 
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
 import pymorphy2
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
@@ -61,7 +60,7 @@ def get_interval(day_week_month, start_date, end_date):
 
 def do_word_count_analysis_pie(comments, phrases, is_order_matter=True, start_date=None, end_date=None):
     '''
-
+    Строит круговую диаграмму по кколичеству встреченных фраз
     :param comments: список комментариев
     :param phrases: список фраз
     :param is_order_matter: учитывать ли порядок слов в фразах
@@ -141,22 +140,28 @@ def get_normal_phrases(phrases):
 
 def save_pie(counts, phrases):
     png_name = 'graph.png'
-    counts_without_null = []
+    plt.style.use('seaborn-whitegrid')
+
     phrases_without_null = []
     for i in range(len(counts)):
         if counts[i] != 0:
-            counts_without_null.append(counts[i])
             phrases_without_null.append(phrases[i])
+        else:
+            phrases_without_null.append('')
 
-    def func(pct, allvals):
-        absolute = int(np.round(pct / 100. * np.sum(allvals)))
-        return "{:.1f}% ({:d})".format(pct, absolute)
+    def func(pct, all_vals):
+        if pct != 0:
+            absolute = int(np.round(pct / 100. * np.sum(all_vals)))
+            return "{:.1f}% ({:d})".format(pct, absolute)
+        else:
+            return ''
 
     plt.style.use('seaborn-whitegrid')
-    plt.pie(x=counts_without_null, labels=phrases_without_null, autopct=lambda pct: func(pct, counts), rotatelabels=True)
+    plt.pie(x=counts, labels=phrases_without_null, rotatelabels=True, autopct=lambda pct: func(pct, counts))
     plt.title("Диаграма частотности фраз")
-    plt.ylabel("")
-    plt.legend(title="Фразы",
+
+    plt.legend(phrases,
+               title="Фразы",
                loc="upper left",
                bbox_to_anchor=(1, 0.6),
                edgecolor='r')
@@ -169,7 +174,7 @@ def save_pie(counts, phrases):
 
 def do_word_count_analysis_hist(comments, phrases, day_week_month='day', is_order_matter=True, start_date=None, end_date=None):
     '''
-
+    Строит график количества встреченных фраз по датам
     :param comments: список комментариев
     :param phrases: список фраз
     :param day_week_month: 'day' или 'week' или 'month' (определяет на какие промежутки будет разбит интервал)
@@ -288,7 +293,7 @@ def save_histogram(counts, phrases, day_week_month):
 
 def do_sentiment_analysis(comments, day_week_month='day', start_date=None, end_date=None):
     '''
-
+    Строит гистограмму тональности комментариев по датам
     :param comments: список комментариев
     :param day_week_month: 'day' или 'week' или 'month' (определяет на какие промежутки будет разбит интервал )
     :param start_date: начало интервала для анализа (None для автовыбора)
