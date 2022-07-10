@@ -36,5 +36,3 @@ SELECT url
     WHERE channel_url = %s
             """, (channel_id,))
             return map(lambda x: x[0], curs)
-
-

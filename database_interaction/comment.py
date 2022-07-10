@@ -6,6 +6,7 @@ import datetime
 from database_interaction.db_connection import connection
 from comment_scrapping.comment import Comment
 from database_interaction.video import ScrapBy, update_scrap_date, insert_video
+import database_interaction.video as video
 
 from database_interaction.video import ScrapBy, update_scrap_date
 
@@ -66,7 +67,10 @@ SELECT EXISTS(
                     """, (video_id, row.text, row.date, row.votes,
                           popular, row.is_reply, row.id))
                     count += 1
-    update_scrap_date(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date, datetime.datetime.now())
+    scrap = ScrapBy.popular if in_popular_order else ScrapBy.date
+    update_scrap_date(video_id, scrap, datetime.datetime.now())
+    video.update_scrap_count(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date,
+                       video.get_scrap_count(video_id, scrap) + len(comments))
     return count
 
 
@@ -92,7 +96,9 @@ INSERT INTO public.commentary(
                 """, (video_id, row.text, row.date, row.votes,
                       popular, row.is_reply, row.id))
                 count += 1
-    update_scrap_date(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date, datetime.datetime.now())
+    scrap = ScrapBy.popular if in_popular_order else ScrapBy.date
+    update_scrap_date(video_id, scrap, datetime.datetime.now())
+    video.update_scrap_count(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date, len(comments))
     return count
 
 

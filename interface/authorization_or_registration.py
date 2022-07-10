@@ -11,39 +11,7 @@ from database_interaction.user import UserCabinet, UserRole
 from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 
 from interface.FSM import DialogSign, DialogUser
-
-# class DialogSign(StatesGroup):
-#     start = State()  # состояния для начального входа в программу
-#     input_name = State()
-#     input_surname = State()
-#     input_patronymic = State()
-#     input_phone = State()
-#     input_email = State()
-#     input_log_reg = State()
-#     input_passw_reg = State()
-#     return_input_passw_reg = State()
-#     registration_status = State()
-#     input_login_auth = State()
-#     input_password_auth = State()
-#     login_status = State()
-#     home_page = State()
-#
-#
-# class DialogUser(StatesGroup):
-#     home_page = State()
-#     personal_area = State()
-#     activate_promo = State()
-#     input_old_passw = State()
-#     input_new_passw = State()
-#     # состояния для анализа
-#     favorites = State()
-#     favorites_video = State()
-#     favorites_channel = State()
-#     view_all_video_in_favorites = State()
-#     add_video_in_favorites = State()
-#     delete_video_in_favorites = State()
-#     # еще куча каких то состояний
-#     exit = State()
+from check_input_data import CheckInputData
 
 info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
 login = None
@@ -57,33 +25,53 @@ async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
 
 async def name_handler(m: Message, dialog: ManagedDialogAdapterProto,
                        manager: DialogManager):
-    info.first_name = m.text
-    await m.answer(f"Приятно познакомиться, {m.text}.")
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.first_name = m.text
+        await m.answer(f"Приятно познакомиться, {m.text}.")
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_name)
 
 
 async def surname_handler(m: Message, dialog: ManagedDialogAdapterProto,
                           manager: DialogManager):
-    info.last_name = m.text
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.last_name = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_surname)
 
 
 async def patronymic_handler(m: Message, dialog: ManagedDialogAdapterProto,
                              manager: DialogManager):
-    info.middle_name = m.text
-    await dialog.next()
+    if CheckInputData.russian_chars(m.text):
+        info.middle_name = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_patronymic)
 
 
 async def phone_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
-    info.phone = m.text
-    await dialog.next()
+    if CheckInputData.phone_number(m.text):
+        info.phone = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Номер телефона должен вводиться с 79_________ , а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_phone)
 
 
 async def email_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
-    info.email = m.text
-    await dialog.next()
+    if CheckInputData.email(m.text):
+        info.email = m.text
+        await dialog.next()
+    else:
+        await m.answer(f"Пример правильной почты xxxx@domen.com , а здесь что то не так - {m.text}.")
+        await dialog.switch_to(DialogSign.input_email)
 
 
 async def to_sign_in(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -216,7 +204,7 @@ dialog_start = Dialog(
     ),
     Window(
         Const("Ваша регистрация завершена!"),
-        Button(Const("ОК"), id="ok", on_click=to_ok),
+        Button(Const("ОК"), id="okey", on_click=to_ok),
         state=DialogSign.registration_status,
     ),
     Window(
@@ -234,7 +222,7 @@ dialog_start = Dialog(
     Window(
         # TODO: убрать это
         Const("Вход выполнен!"),
-        Button(Const("ОК"), id="ok", on_click=to_ok),
+        Button(Const("ОК"), id="okey", on_click=to_ok),
         state=DialogSign.login_status,
     )
 )
@@ -242,4 +230,5 @@ dialog_start = Dialog(
 
 async def start(m: Message, dialog_manager: DialogManager):
     # it is important to reset stack because user wants to restart everything
+    authorization.sign_out(m.from_user.id)
     await dialog_manager.start(DialogSign.start, mode=StartMode.RESET_STACK)
