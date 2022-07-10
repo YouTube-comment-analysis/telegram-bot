@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 import analysis
 import database
-
+from comment_scrapping.comment import Comment
 
 """
 Примеры использования:
@@ -19,10 +19,9 @@ cloud_mask = np.array(Image.open("word_cloud/cloud.png"))
 save_path = ''
 
 
-def get_all_normal_words(video_id: str):
-    data = database.comment.extract_comments(video_id)
-    comments = " ".join(list(map(lambda x: x.text, data)))
-    words = analysis.get_normal_phrases(comments.split('\n'))
+def get_all_normal_words(comments: str):
+    comments_text = " ".join(list(map(lambda x: x.text, comments)))
+    words = analysis.get_normal_phrases(comments_text.split('\n'))
     text = []
     for mess in words:
         for word in mess:
@@ -31,9 +30,9 @@ def get_all_normal_words(video_id: str):
     return all_words
 
 
-def create_default_word_cloud(video_id: str, file_name: str) -> str:
+def create_default_word_cloud(comments: [Comment], file_name: str) -> str:
     """Создать обычное облако слов, возвращает путь к файлу"""
-    text = get_all_normal_words(video_id)
+    text = get_all_normal_words(comments)
     word_cloud = WordCloud(max_words=80, background_color='white',
                            min_word_length=3,
                            stopwords=stop_words,
@@ -43,9 +42,9 @@ def create_default_word_cloud(video_id: str, file_name: str) -> str:
     return path
 
 
-def create_adoptive_background_word_cloud(video_id: str, png_mask_path: str, file_name: str) -> str:
+def create_adoptive_background_word_cloud(comments: [Comment], png_mask_path: str, file_name: str) -> str:
     """Создание облака слов по фото с копированием цвета фона под словом"""
-    text = get_all_normal_words(video_id)
+    text = get_all_normal_words(comments)
     mask = np.array(Image.open(png_mask_path))
     word_cloud = WordCloud(max_words=80, background_color='white',
                            min_word_length=3, stopwords=stop_words,
