@@ -1,40 +1,41 @@
 import datetime
 
 from database_interaction.channel import insert_channel
+import datetime
+
 from database_interaction.db_connection import connection
 from comment_scrapping.comment import Comment
 from database_interaction.video import ScrapBy, update_scrap_date, insert_video
 
+from database_interaction.video import ScrapBy, update_scrap_date
 
-def extract_comments(video_id: str, ordered_by_date: bool = False):
+def extract_comments(video_id: str, ordered_by_date: bool = False) -> [Comment]:
     """Скачать все комментарии к видео. Можно выбрать сортировку по дате, иначе по популярности"""
     with connection as connect:
         with connect.cursor() as curs:
             if ordered_by_date:
                 curs.execute("""
-SELECT url, text, writing_date, likes, popular_order, is_reply
+SELECT url, text, writing_date, likes, is_reply, comment_id
     FROM public.commentary
     WHERE url = %s
-    ORDER BY writing_date
+    ORDER BY writing_date DESC
                 """, (video_id,))
-                return curs.fetchall()
             else:
                 curs.execute("""
-SELECT url, text, writing_date, likes, popular_order, is_reply
+SELECT url, text, writing_date, likes, is_reply, comment_id
     FROM public.commentary
     WHERE url = %s
     ORDER BY popular_order
                 """, (video_id,))
-            data = curs.fetchall()
-            return list(map(lambda x: Comment(
-                video_url=x[0],
-                text=x[1],
-                date=x[2],
-                votes=x[3],
-                is_reply=x[4],
-                id=x[5]
-            ), data))
 
+            return map(lambda x: Comment(
+                video_url=x['0'],
+                text=x['1'],
+                date=x['2'],
+                votes=x['3'],
+                is_reply=x['4'],
+                id=x['5']
+            ), curs)
 
 def load_comments(video_id: str, channel_id: str, comments: [Comment], in_popular_order: bool) -> int:
     """Загрузить **ДОПОЛНИТЕЛЬНЫЕ** комментарии к видео
