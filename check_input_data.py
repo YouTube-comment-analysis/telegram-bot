@@ -1,6 +1,8 @@
 import re
 from datetime import datetime
 
+from dateparser import date
+
 
 class CheckInputData:
     @staticmethod
@@ -47,11 +49,6 @@ class CheckInputData:
 
 
     @staticmethod
-    def date_lesser_check(first: datetime, second: datetime) -> bool:
+    def date_lesser_check(first: datetime, second: date) -> bool:
         return first < second
-
-
-
-
-
 

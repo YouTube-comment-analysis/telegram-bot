@@ -1,7 +1,10 @@
 import enum
 from datetime import datetime
-from database_interaction.db_connection import connection
 
+from typing import Union
+
+from database_interaction.db_connection import connection
+import datetime
 
 def insert_video(channel_id: str, video_id: str):
     """Добавить видео в базу"""
@@ -25,10 +28,10 @@ def update_scrap_date(video_id: str, scrap_by: ScrapBy, new_value: datetime):
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-UPDATE public.video
-    SET {scrap_by.value[0]} = %s
-    WHERE url = %s
-            """, (new_value, video_id))
+    UPDATE public.video
+        SET {scrap_by.value[0]} = %s
+        WHERE url = %s
+                """, (new_value, video_id))
 
 
 def update_scrap_count(video_id: str, scrap_by: ScrapBy, new_value: int):
@@ -42,7 +45,7 @@ UPDATE public.video
             """, (new_value, video_id))
 
 
-def get_scrap_date(video_id: str, scrap_by: ScrapBy) -> int:
+def get_scrap_date(video_id: str, scrap_by: ScrapBy) -> Union[type(datetime), None]:
     """Получить дату последней подгрузки комментариев"""
     with connection as connect:
         with connect.cursor() as curs:
@@ -52,7 +55,7 @@ FROM public.video
 WHERE url = %s
             """, (video_id,))
             data = curs.fetchone()
-            return data[0] if data is not None else 0
+            return None if data is None else data[0]
 
 
 def get_scrap_count(video_id: str, scrap_by: ScrapBy) -> int:
@@ -60,8 +63,8 @@ def get_scrap_count(video_id: str, scrap_by: ScrapBy) -> int:
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT """ + (scrap_by.value[1]) + """
-FROM public.video
+SELECT {scrap_by.value[1]}
+ FROM public.video
 WHERE url = %s
             """, (video_id,))
             data = curs.fetchone()
@@ -98,7 +101,7 @@ SELECT EXISTS(
             return curs.fetchone()[0]
 
 
-def have_video_comments(video_id: str, scrap: str) -> bool:
+def have_video_comments(video_id: str, scrap: ScrapBy) -> bool:
     if video_exists(video_id):
         data = get_scrap_count(video_id, scrap)
         if data > 0:

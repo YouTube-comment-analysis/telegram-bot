@@ -1,6 +1,7 @@
 import enum
-from database_interaction.db_connection import connection
 
+from database_interaction import auth
+from database_interaction.db_connection import connection
 
 class UserRole(enum.Enum):
     banned = 'ban'
@@ -21,6 +22,22 @@ SELECT user_id, enter_date, role_name
             """, (user_id,))
             data = curs.fetchone()
             return UserRole(data[2])
+
+
+def set_user_role(login: str, role: UserRole):
+    if auth.get_login_exists(login):
+        user_id = auth.get_user_id(login)
+
+        """Изменить роль пользователя"""
+        with connection as connect:
+            with connect.cursor() as curs:
+                curs.execute("""
+UPDATE public.users
+SET role_name=%s
+WHERE user_id = %s;
+                """, (role.value, user_id))
+                data = curs.fetchone()
+                return UserRole(data[2])
 
 
 class UserCabinet:
@@ -94,3 +111,6 @@ UPDATE public.cabinet
     SET credits = %s
     WHERE user_id = %s;
             """, (new_value, user_id))
+
+
+
