@@ -19,7 +19,7 @@ cloud_mask = np.array(Image.open("word_cloud/cloud.png"))
 save_path = ''
 
 
-def get_all_normal_words(comments: str):
+def get_all_normal_words(comments: [Comment]):
     comments_text = " ".join(list(map(lambda x: x.text, comments)))
     words = analysis.get_normal_phrases(comments_text.split('\n'))
     text = []
