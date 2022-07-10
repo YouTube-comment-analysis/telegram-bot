@@ -31,6 +31,7 @@ FROM public.authorization
             """, (user_id,))
             return curs.fetchone()[0]
 
+
 def get_login_exists(login: str) -> bool:
     """Проверить зарегистрирован ли пользователь с таким логином"""
     with connection as connect:

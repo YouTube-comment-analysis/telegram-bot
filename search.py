@@ -88,9 +88,11 @@ def get_video_comments_count(url):
     response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
     js = response.json()
 
-    return int(js['onResponseReceivedEndpoints'][0]['reloadContinuationItemsCommand']['continuationItems'][0][
-                   'commentsHeaderRenderer']['countText']['runs'][0]['text'].replace(r' ',
-                                                                                     ''))  # int(response.text.split('"text": "')[1].split('"')[0].replace(' ',''))
+    if 'reloadContinuationItemsCommand' in js['onResponseReceivedEndpoints'][0]:
+        return int(js['onResponseReceivedEndpoints'][0]['reloadContinuationItemsCommand']['continuationItems'][0][
+                   'commentsHeaderRenderer']['countText']['runs'][0]['text'].replace(r' ',''))
+    else:
+        return
 
 
 def remove_dublicats(list):
@@ -269,6 +271,8 @@ def get_list_of_channel_videos_with_additional_information(channel_url, start_da
         dic_list.append({'url': url, 'comment_count': get_video_comments_count(url)})
         print(str(len(dic_list)) + "/" + str(len(video_urls)))
     print(len(dic_list))
+
+    return dic_list
 
 
 def get_chanel_url_by_video(video_url):

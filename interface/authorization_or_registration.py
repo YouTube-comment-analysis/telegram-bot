@@ -5,6 +5,7 @@ from aiogram_dialog.widgets.text import Const
 from aiogram.types import Message, CallbackQuery
 
 import authorization
+import user_variable_storage
 from authorization_process.auth import sign_in, sign_up
 from database_interaction.auth import get_login_exists
 from database_interaction.user import UserCabinet, UserRole
@@ -12,11 +13,18 @@ from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 
 from interface.FSM import DialogSign, DialogUser
 from check_input_data import CheckInputData
+from user_variable_storage import try_add_new_telegram_id
+from user_variable_storage import UserVariable, get_variable_from_dict, add_variable_in_dict
 
-info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
-login = None
-password = None
-return_password = None
+
+
+# info = UserCabinet("Пусто", "Пусто", "Пусто", "Пусто", "Пусто", 5)
+# login = None
+# password = None
+# return_password = None
+
+
+
 
 
 async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -26,7 +34,8 @@ async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
 async def name_handler(m: Message, dialog: ManagedDialogAdapterProto,
                        manager: DialogManager):
     if CheckInputData.russian_chars(m.text):
-        info.first_name = m.text
+        add_variable_in_dict(m.from_user.id, UserVariable.first_name, m.text)
+        #info.first_name = m.text
         await m.answer(f"Приятно познакомиться, {m.text}.")
         await dialog.next()
     else:
@@ -37,7 +46,8 @@ async def name_handler(m: Message, dialog: ManagedDialogAdapterProto,
 async def surname_handler(m: Message, dialog: ManagedDialogAdapterProto,
                           manager: DialogManager):
     if CheckInputData.russian_chars(m.text):
-        info.last_name = m.text
+        add_variable_in_dict(m.from_user.id, UserVariable.last_name, m.text)
+        #info.last_name = m.text
         await dialog.next()
     else:
         await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
@@ -47,7 +57,8 @@ async def surname_handler(m: Message, dialog: ManagedDialogAdapterProto,
 async def patronymic_handler(m: Message, dialog: ManagedDialogAdapterProto,
                              manager: DialogManager):
     if CheckInputData.russian_chars(m.text):
-        info.middle_name = m.text
+        add_variable_in_dict(m.from_user.id, UserVariable.middle_name, m.text)
+        #info.middle_name = m.text
         await dialog.next()
     else:
         await m.answer(f"Можно вводить только русские символы. Первая буква - заглавная, а здесь что то не так - {m.text}.")
@@ -57,7 +68,8 @@ async def patronymic_handler(m: Message, dialog: ManagedDialogAdapterProto,
 async def phone_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
     if CheckInputData.phone_number(m.text):
-        info.phone = m.text
+        add_variable_in_dict(m.from_user.id, UserVariable.phone, m.text)
+        # info.phone = m.text
         await dialog.next()
     else:
         await m.answer(f"Номер телефона должен вводиться с 79_________ , а здесь что то не так - {m.text}.")
@@ -67,7 +79,8 @@ async def phone_handler(m: Message, dialog: ManagedDialogAdapterProto,
 async def email_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
     if CheckInputData.email(m.text):
-        info.email = m.text
+        add_variable_in_dict(m.from_user.id, UserVariable.email, m.text)
+        #info.email = m.text
         await dialog.next()
     else:
         await m.answer(f"Пример правильной почты xxxx@domen.com , а здесь что то не так - {m.text}.")
@@ -82,8 +95,7 @@ async def to_sign_in(c: CallbackQuery, button: Button, manager: DialogManager):
 async def login_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
     if get_login_exists(m.text):
-        global login
-        login = m.text
+        user_variable_storage.add_variable_in_dict(m.from_user.id, UserVariable.login, m.text)
         await dialog.next()
     else:
         await m.answer(f"Ваш логин: {m.text} - неверный.")
@@ -93,7 +105,7 @@ async def login_handler(m: Message, dialog: ManagedDialogAdapterProto,
 # Для входа
 async def password_handler(m: Message, dialog: ManagedDialogAdapterProto,
                            manager: DialogManager):
-    if sign_in(login, m.text, m.from_user.id):
+    if sign_in(user_variable_storage.get_variable_from_dict(m.from_user.id, UserVariable.login), m.text, m.from_user.id):
         await dialog.next()
     else:
         await m.answer("Что-то пошло не так...\nВозможные проблемы:\nваш пароль неверный\nпользователь уже онлайн.")
@@ -104,8 +116,7 @@ async def password_handler(m: Message, dialog: ManagedDialogAdapterProto,
 async def log_handler(m: Message, dialog: ManagedDialogAdapterProto,
                       manager: DialogManager):
     if not get_login_exists(m.text):
-        global login
-        login = m.text
+        user_variable_storage.add_variable_in_dict(m.from_user.id, UserVariable.login, m.text)
         await dialog.next()
     else:
         await m.answer("Пользователь с таким логином уже существует.")
@@ -115,19 +126,27 @@ async def log_handler(m: Message, dialog: ManagedDialogAdapterProto,
 # Для регистрации
 async def passw_handler(m: Message, dialog: ManagedDialogAdapterProto,
                         manager: DialogManager):
-    global password
-    password = m.text
+    user_variable_storage.add_variable_in_dict(m.from_user.id, UserVariable.password, m.text)
     await dialog.next()
 
 
 # Для регистрации
 async def return_password_handler(m: Message, dialog: ManagedDialogAdapterProto,
                                   manager: DialogManager):
-    if m.text == password:
-        global return_password
-        return_password = m.text
-        sign_up(info, UserRole.user, login, return_password)
-        sign_in(login, m.text, m.from_user.id)
+    if m.text == get_variable_from_dict(m.from_user.id, UserVariable.password):
+        add_variable_in_dict(m.from_user.id, UserVariable.return_password, m.text)
+        user_cabinet = UserCabinet(
+            get_variable_from_dict(m.from_user.id, UserVariable.first_name),
+            get_variable_from_dict(m.from_user.id, UserVariable.last_name),
+            get_variable_from_dict(m.from_user.id, UserVariable.middle_name),
+            get_variable_from_dict(m.from_user.id, UserVariable.phone),
+            get_variable_from_dict(m.from_user.id, UserVariable.email),
+            5
+        )
+        sign_up(user_cabinet, UserRole.user,
+                get_variable_from_dict(m.from_user.id, UserVariable.login),
+                get_variable_from_dict(m.from_user.id, UserVariable.return_password))
+        sign_in(get_variable_from_dict(m.from_user.id, UserVariable.login), m.text, m.from_user.id)
         await dialog.next()
     else:
         await m.answer("Что-то пошло не так.. Ваш повторный пароль не совпадает с предыдущим.")
@@ -231,4 +250,5 @@ dialog_start = Dialog(
 async def start(m: Message, dialog_manager: DialogManager):
     # it is important to reset stack because user wants to restart everything
     authorization.sign_out(m.from_user.id)
+    try_add_new_telegram_id(m.from_user.id)
     await dialog_manager.start(DialogSign.start, mode=StartMode.RESET_STACK)

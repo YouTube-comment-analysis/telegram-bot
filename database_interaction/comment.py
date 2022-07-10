@@ -10,6 +10,7 @@ import database_interaction.video as video
 
 from database_interaction.video import ScrapBy, update_scrap_date
 
+
 def extract_comments(video_id: str, ordered_by_date: bool = False) -> [Comment]:
     """Скачать все комментарии к видео. Можно выбрать сортировку по дате, иначе по популярности"""
     with connection as connect:
@@ -28,15 +29,17 @@ SELECT url, text, writing_date, likes, is_reply, comment_id
     WHERE url = %s
     ORDER BY popular_order
                 """, (video_id,))
+            data = curs.fetchall()
+            arr = map(lambda x: Comment(
+                video_url=video_id,
+                text=x[1],
+                date=x[2],
+                votes=x[3],
+                is_reply=x[4],
+                id=x[5]
+            ), data)
+    return list(arr)
 
-            return map(lambda x: Comment(
-                video_url=x['0'],
-                text=x['1'],
-                date=x['2'],
-                votes=x['3'],
-                is_reply=x['4'],
-                id=x['5']
-            ), curs)
 
 def load_comments(video_id: str, channel_id: str, comments: [Comment], in_popular_order: bool) -> int:
     """Загрузить **ДОПОЛНИТЕЛЬНЫЕ** комментарии к видео
@@ -70,7 +73,7 @@ SELECT EXISTS(
     scrap = ScrapBy.popular if in_popular_order else ScrapBy.date
     update_scrap_date(video_id, scrap, datetime.datetime.now())
     video.update_scrap_count(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date,
-                       video.get_scrap_count(video_id, scrap) + len(comments))
+                             video.get_scrap_count(video_id, scrap) + len(comments))
     return count
 
 
@@ -93,12 +96,15 @@ def reload_comments(video_id: str, channel_id: str, comments: [Comment], in_popu
 INSERT INTO public.commentary(
     url, text, writing_date, likes, popular_order, is_reply, comment_id)
     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (video_id, row.text, row.date, row.votes,
+                """, (video_id, row.text, row.date, 0, # TODO: votes = 0
                       popular, row.is_reply, row.id))
                 count += 1
     scrap = ScrapBy.popular if in_popular_order else ScrapBy.date
     update_scrap_date(video_id, scrap, datetime.datetime.now())
     video.update_scrap_count(video_id, ScrapBy.popular if in_popular_order else ScrapBy.date, len(comments))
+
+    update_scrap_date(video_id, ScrapBy.date if in_popular_order else ScrapBy.popular, None)
+    video.update_scrap_count(video_id, ScrapBy.date if in_popular_order else ScrapBy.popular, 0)
     return count
 
 

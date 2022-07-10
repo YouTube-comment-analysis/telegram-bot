@@ -14,7 +14,9 @@ from interface.FSM import DialogUser
 from interface.admin import dialog_admin
 from interface.authorization_or_registration import start, dialog_start
 from interface.manager import dialog_manager
-from interface.user import dialog_user, settings, helps, home_page, analysis, history
+
+from interface.user import dialog_user, settings, helps, home_page, analyse, history
+
 
 src_dir = os.path.normpath(os.path.join(__file__, os.path.pardir))
 
@@ -29,9 +31,10 @@ async def main():
     dp = Dispatcher(bot, storage=storage)
     registry = DialogRegistry(dp)
     dp.register_message_handler(start, text="/start", state="*")
+    #TODO: быстрых перемещений не должно быть в момент загрузки чего либо! Надо изменить состояния
     dp.register_message_handler(settings, text="/settings", aiogd_intent_state_group=DialogUser)
     dp.register_message_handler(home_page, text="/home_page", aiogd_intent_state_group=DialogUser)
-    dp.register_message_handler(analysis, text="/analysis", aiogd_intent_state_group=DialogUser)
+    dp.register_message_handler(analyse, text="/analysis", aiogd_intent_state_group=DialogUser)
     dp.register_message_handler(history, text="/history", aiogd_intent_state_group=DialogUser)
     dp.register_message_handler(helps, text="/help", aiogd_intent_state_group=DialogUser)
     registry.register(dialog_start)

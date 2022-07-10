@@ -10,12 +10,13 @@ from comment_scrapping.comment import Comment
 """
 Примеры использования:
 create_default_word_cloud('MrTcmheQuAs&t=614s', 'test')
-create_adoptive_background_word_cloud('MrTcmheQuAs&t=614s', 'word_cloud/cloud.png', 'test-color')
+create_adoptive_background_word_cloud('MrTcmheQuAs&t=614s', 'word_cloud_data/cloud.png', 'test-color')
 """
 
-
-stop_words = list(map(lambda x: x[:-1], (open('word_cloud/stop-words.txt', 'r', encoding='UTF-8').readlines())))
-cloud_mask = np.array(Image.open("word_cloud/cloud.png"))
+f = open('word_cloud_data/stop-words.txt', 'r', encoding='UTF-8')
+stop_words = list(map(lambda x: x[:-1], f.readlines()))
+f.close()
+cloud_mask = np.array(Image.open("word_cloud_data/cloud.png"))
 save_path = ''
 
 
@@ -37,7 +38,7 @@ def create_default_word_cloud(comments: [Comment], file_name: str) -> str:
                            min_word_length=3,
                            stopwords=stop_words,
                            mask=cloud_mask).generate(text)
-    path = f'{save_path}{file_name}.png'
+    path = f'{save_path}{file_name}'
     word_cloud.to_file(path)
     return path
 
@@ -52,7 +53,7 @@ def create_adoptive_background_word_cloud(comments: [Comment], png_mask_path: st
     image_colors = ImageColorGenerator(mask)
     plt.imshow(word_cloud.recolor(color_func=image_colors), interpolation="bilinear")
     plt.axis("off")
-    path = f'{save_path}{file_name}.png'
+    path = f'{save_path}{file_name}'
     plt.savefig(path, format="png", bbox_inches='tight')
     return path
 

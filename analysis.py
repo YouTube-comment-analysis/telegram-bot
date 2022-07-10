@@ -58,15 +58,16 @@ def get_interval(day_week_month, start_date, end_date):
     return interval
 
 
-def do_word_count_analysis_pie(comments, phrases, is_order_matter=True, start_date=None, end_date=None):
+def do_word_count_analysis_pie(comments, phrases, is_order_matter=True, start_date=None, end_date=None, image_name='pie'):
     '''
-    Строит круговую диаграмму по кколичеству встреченных фраз
+    Строит круговую диаграмму по количеству встреченных фраз
     :param comments: список комментариев
     :param phrases: список фраз
     :param is_order_matter: учитывать ли порядок слов в фразах
     :param start_date: начало интервала для анализа (None для автовыбора)
     :param end_date: конец интервала для анализа (None для автовыбора)
-    :return: имя файла с графиком
+    :param image_name: имя файла (использовать телеграм id)
+    :return: относительный путь к круговой диаграмме
     '''
     if start_date is None:
         start_date = datetime.date(9999, 1, 1)
@@ -80,7 +81,7 @@ def do_word_count_analysis_pie(comments, phrases, is_order_matter=True, start_da
                 end_date = comment.date
 
     equal_phrase_counts = get_equal_phases_counts(comments, phrases, is_order_matter, start_date, end_date)
-    return save_pie(equal_phrase_counts, phrases)
+    return save_pie(equal_phrase_counts, phrases, image_name)
 
 
 def get_equal_phases_counts(comments, phrases, is_order_matter, start_date, end_date):
@@ -138,8 +139,7 @@ def get_normal_phrases(phrases):
     return normal_phrases
 
 
-def save_pie(counts, phrases):
-    png_name = 'graph.png'
+def save_pie(counts, phrases, image_name):
     plt.style.use('seaborn-whitegrid')
 
     phrases_without_null = []
@@ -166,13 +166,14 @@ def save_pie(counts, phrases):
                bbox_to_anchor=(1, 0.6),
                edgecolor='r')
 
-    plt.savefig(png_name, dpi=200)
+    path = r'photos/' + image_name + '.png'
+    plt.savefig(path, dpi=200)
     #plt.show()
 
-    return png_name
+    return path
 
 
-def do_word_count_analysis_hist(comments, phrases, day_week_month='day', is_order_matter=True, start_date=None, end_date=None):
+def do_word_count_analysis_hist(comments, phrases, day_week_month='day', is_order_matter=True, start_date=None, end_date=None, image_name='hist'):
     '''
     Строит график количества встреченных фраз по датам
     :param comments: список комментариев
@@ -181,7 +182,8 @@ def do_word_count_analysis_hist(comments, phrases, day_week_month='day', is_orde
     :param is_order_matter: учитывать ли порядок слов в фразах
     :param start_date: начало интервала для анализа (None для автовыбора)
     :param end_date: конец интервала для анализа (None для автовыбора)
-    :return: имя файла с графиком
+    :param image_name: имя файла (использовать телеграм id)
+    :return: относительный путь к диаграмме
     '''
 
     if start_date is None:
@@ -196,7 +198,7 @@ def do_word_count_analysis_hist(comments, phrases, day_week_month='day', is_orde
                 end_date = comment.date
 
     dates = get_equal_phases_counts_with_date_by_date(comments, phrases, day_week_month, start_date, end_date, is_order_matter)
-    return save_histogram(dates, phrases, day_week_month)
+    return save_histogram(dates, phrases, day_week_month, image_name)
 
 
 def get_equal_phases_counts_with_date_by_date(comments, phrases, day_week_month, start_date, end_date, is_order_matter):
@@ -267,8 +269,7 @@ def get_equal_phases_counts_with_date_by_date(comments, phrases, day_week_month,
     return [dates, counts]
 
 
-def save_histogram(counts, phrases, day_week_month):
-    png_name = 'graph.png'
+def save_histogram(counts, phrases, day_week_month, image_name):
     plt.style.use('bmh')
 
     fig, ax = plt.subplots()
@@ -286,19 +287,21 @@ def save_histogram(counts, phrases, day_week_month):
     plt.legend(title="Фразы", labels=phrases)
 
     #plt.show()
-    plt.savefig(png_name, dpi=200)
+    path = r'photos/' + image_name + '.png'
+    plt.savefig(path, dpi=200)
 
-    return png_name
+    return path
 
 
-def do_sentiment_analysis(comments, day_week_month='day', start_date=None, end_date=None):
+def do_sentiment_analysis(comments: list, day_week_month='day', start_date=None, end_date=None, image_name='hist'):
     '''
     Строит гистограмму тональности комментариев по датам
     :param comments: список комментариев
     :param day_week_month: 'day' или 'week' или 'month' (определяет на какие промежутки будет разбит интервал )
     :param start_date: начало интервала для анализа (None для автовыбора)
     :param end_date: конец интервала для анализа (None для автовыбора)
-    :return: имя файла гистограммы
+    :param image_name: имя файла (использовать телеграм id)
+    :return: относительный путь к диаграмме
     '''
     if start_date is None:
         start_date = datetime.date(9999,1,1)
@@ -331,7 +334,7 @@ def do_sentiment_analysis(comments, day_week_month='day', start_date=None, end_d
 
     dates_with_counts = get_dates_with_counts(dates, moods, day_week_month, start_date, end_date)
 
-    return save_sentiment_hist(dates_with_counts[0], dates_with_counts[1], day_week_month)
+    return save_sentiment_hist(dates_with_counts[0], dates_with_counts[1], day_week_month, image_name)
 
 
 def get_sentiment_predicts(comments):
@@ -369,8 +372,7 @@ def get_dates_with_counts(dates, moods, day_week_month, start_date, end_date):
     return [result_dates, counts]
 
 
-def save_sentiment_hist(dates, counts, day_week_month):
-    png_name = 'graph.png'
+def save_sentiment_hist(dates, counts, day_week_month, image_name):
     plt.style.use('bmh')
 
     fig, ax = plt.subplots()
@@ -401,6 +403,7 @@ def save_sentiment_hist(dates, counts, day_week_month):
     plt.legend(title="Окрас")
 
     #plt.show()
-    plt.savefig(png_name, dpi=200)
+    path = r'photos/' + image_name + '.png'
+    plt.savefig(path, dpi=200)
 
-    return png_name
+    return path

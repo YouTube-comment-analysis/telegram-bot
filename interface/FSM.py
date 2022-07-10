@@ -37,6 +37,12 @@ class DialogUser(StatesGroup):
     choose_analysis = State()
     analysis_world_cloud = State()
     add_photo_png = State()
+    analysis_result_word_cloud = State()
+    analysis_phrases = State()
+    pie_chart = State()
+    analysis_phrase_param = State()
+    input_words = State()
+    analysis_result_input_words = State()
     # состояния для избранного
     favorites = State()
     favorites_video = State()
