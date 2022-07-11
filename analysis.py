@@ -166,8 +166,9 @@ def save_pie(counts, phrases, image_name):
                bbox_to_anchor=(1, 0.6),
                edgecolor='r')
 
-    path = r'photos/' + image_name + '.png'
+    path = r'photos/' + str(image_name) + '.png'
     plt.savefig(path, dpi=200)
+    plt.clf()
     #plt.show()
 
     return path
@@ -287,8 +288,9 @@ def save_histogram(counts, phrases, day_week_month, image_name):
     plt.legend(title="Фразы", labels=phrases)
 
     #plt.show()
-    path = r'photos/' + image_name + '.png'
+    path = r'photos/' + str(image_name) + '.png'
     plt.savefig(path, dpi=200)
+    plt.clf()
 
     return path
 
@@ -403,7 +405,8 @@ def save_sentiment_hist(dates, counts, day_week_month, image_name):
     plt.legend(title="Окрас")
 
     #plt.show()
-    path = r'photos/' + image_name + '.png'
+    path = r'photos/' + str(image_name) + '.png'
     plt.savefig(path, dpi=200)
+    plt.clf()
 
     return path

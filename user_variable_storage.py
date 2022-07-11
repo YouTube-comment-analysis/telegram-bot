@@ -35,7 +35,9 @@ class UserVariable(enum.Enum):
     is_order_matter = 'is_order_matter'
     is_in_loop = 'is_in_loop'
     is_chart_pie = 'is_chart_pie'
-    current_date_interval_state = 'current_date_interval_state' #0 - интервал на канале; 1 - интервал на диаграмме
+    current_date_interval_state = 'current_date_interval_state' #0 - интервал на канале; 1 - интервал на диаграмме; 2 - интервал на сентименте
+    user_login_in_admin_mode = 'user_login_in_admin_mode'
+    phrases = 'phrases'
 
 
 def try_add_new_telegram_id(telegram_id: str):

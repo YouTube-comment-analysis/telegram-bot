@@ -60,6 +60,7 @@ def get_videos_by_channel_url(url):
                 result += re.findall(r'(/watch\?v=.*?)"', str(response.text))
                 text = response.text.replace('\n', '').replace(' ', '')
 
+            session.close()
             return result
 
         else:
@@ -87,12 +88,13 @@ def get_video_comments_count(url):
 
     response = session.post('https://www.youtube.com/youtubei/v1/next', params={'key': key}, json=data)
     js = response.json()
+    session.close()
 
     if 'reloadContinuationItemsCommand' in js['onResponseReceivedEndpoints'][0]:
         return int(js['onResponseReceivedEndpoints'][0]['reloadContinuationItemsCommand']['continuationItems'][0][
                    'commentsHeaderRenderer']['countText']['runs'][0]['text'].replace(r' ',''))
     else:
-        return
+        return 0
 
 
 def remove_dublicats(list):
@@ -260,12 +262,15 @@ def exclude_videos_by_date_interval(urls, start_date, end_date):
 
 
 def get_list_of_channel_videos_with_additional_information(channel_url, start_date, end_date):
+    print('Запуск поиска всех видео канала')
     video_urls = get_videos_by_channel_url(channel_url)
     for i in range(len(video_urls)):
         video_urls[i] = 'https://www.youtube.com' + video_urls[i]
 
+    print('Запуск отбора видео из нужного временного интервала')
     video_urls = exclude_videos_by_date_interval(video_urls, start_date, end_date)
 
+    print('Запуск подсчета количества комментариве под видео')
     dic_list = []
     for url in video_urls:
         dic_list.append({'url': url, 'comment_count': get_video_comments_count(url)})

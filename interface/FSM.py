@@ -39,9 +39,13 @@ class DialogUser(StatesGroup):
     add_photo_png = State()
     analysis_result_word_cloud = State()
     analysis_phrases = State()
+    analysis_sentiment_result = State()
+    analysis_sentiment_show_result = State()
+    analysis_sentiment_param = State()
     pie_chart = State()
     analysis_phrase_param = State()
     input_words = State()
+    words_without_inmut = State()
     analysis_result_input_words = State()
     # состояния для избранного
     favorites = State()
@@ -69,6 +73,13 @@ class DialogUser(StatesGroup):
 
 class DialogAdmin(StatesGroup):
     start = State()  # состояния для начального входа в программу
+    statistics = State()
+    user_statistic = State()
+    role_changer = State()
+    input_login = State()
+    input_max_comment_setting = State()
+    input_login_analysis = State()
+
 
 
 class DialogMngr(StatesGroup):

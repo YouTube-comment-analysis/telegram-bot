@@ -1,6 +1,6 @@
 import enum
 
-from database_interaction import auth
+import database_interaction
 from database_interaction.db_connection import connection
 
 class UserRole(enum.Enum):
@@ -16,17 +16,17 @@ def get_user_role(user_id: int):
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute("""
-SELECT user_id, enter_date, role_name
+SELECT role_name
     FROM public.users
     WHERE user_id = %s
             """, (user_id,))
             data = curs.fetchone()
-            return UserRole(data[2])
+            return UserRole(data[0])
 
 
 def set_user_role(login: str, role: UserRole):
-    if auth.get_login_exists(login):
-        user_id = auth.get_user_id(login)
+    if database_interaction.auth.get_login_exists(login):
+        user_id = database_interaction.auth.get_user_id(login)
 
         """Изменить роль пользователя"""
         with connection as connect:
@@ -36,8 +36,6 @@ UPDATE public.users
 SET role_name=%s
 WHERE user_id = %s;
                 """, (role.value, user_id))
-                data = curs.fetchone()
-                return UserRole(data[2])
 
 
 class UserCabinet:

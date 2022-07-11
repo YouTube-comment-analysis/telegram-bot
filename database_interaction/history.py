@@ -101,42 +101,39 @@ INSERT INTO public.history_channel(
 
 def get_video_requests_count_for_last_parameter(parameter: str) -> int:
     """Получить количество запросов видео за последний промежуток у всех
-    :param parameter '1 month', '3 days' и т.д."""
+    :param parameter '1 month', '3 day' и т.д."""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT COUNT (
-SELECT * FROM public.history_video
+SELECT count(*) 
+FROM public.history_video
 WHERE viewing_date >= now() - interval '{parameter}'
-)
             """)
             return curs.fetchone()[0]
 
 
 def get_new_users_count_for_last_parameter(parameter: str) -> int:
     """Получить количество запросов видео за сколько-то у всех
-    :param parameter '1 month', '3 days' и т.д."""
+    :param parameter '1 month', '3 day' и т.д."""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT COUNT (
-SELECT * FROM public.users;
+SELECT count(*) 
+FROM public.users
 WHERE enter_date >= now() - interval '{parameter}'
-)
             """)
             return curs.fetchone()[0]
 
 
 def get_channel_requests_count_for_last_parameter(parameter: str) -> int:
     """Получить количество запросов видео за сколько-то у всех
-    :param parameter '1 month', '3 days' и т.д."""
+    :param parameter '1 month', '3 day' и т.д."""
     with connection as connect:
         with connect.cursor() as curs:
             curs.execute(f"""
-SELECT COUNT (
-SELECT * FROM public.users;
+SELECT count(*) 
+FROM public.history_channel
 WHERE viewing_date >= now() - interval '{parameter}'
-)
             """)
             return curs.fetchone()[0]
 
@@ -146,32 +143,31 @@ WHERE viewing_date >= now() - interval '{parameter}'
 
 def get_user_video_requests_count_for_last_parameter(parameter: str, login: str) -> int:
     """Получить количество запросов видео за последний промежуток у пользователя
-    :param parameter '1 month', '3 days' и т.д."""
+    :param parameter '1 month', '3 day' и т.д."""
     if auth.get_login_exists(login):
         user_id = auth.get_user_id(login)
         with connection as connect:
             with connect.cursor() as curs:
                 curs.execute(f"""
-SELECT COUNT (
-SELECT * FROM public.history_video
+SELECT count(*) 
+FROM public.history_video
 WHERE viewing_date >= now() - interval '{parameter}' AND user_id = %s
-)
+
                 """, (user_id,))
                 return curs.fetchone()[0]
 
 
 def get_user_channel_requests_count_for_last_parameter(parameter: str, login: str) -> int:
     """Получить количество запросов видео за последний промежуток у пользователя
-    :param parameter '1 month', '3 days' и т.д."""
+    :param parameter '1 month', '3 day' и т.д."""
     if auth.get_login_exists(login):
         user_id = auth.get_user_id(login)
         with connection as connect:
             with connect.cursor() as curs:
                 curs.execute(f"""
-SELECT COUNT (
-SELECT * FROM public.users;
+SELECT count(*) 
+FROM public.history_channel
 WHERE viewing_date >= now() - interval '{parameter}'
-)
-            """, (user_id,))
+                """, (user_id,))
                 return curs.fetchone()[0]
 
