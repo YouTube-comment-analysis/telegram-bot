@@ -1,11 +1,9 @@
-import datetime
-
 from database_interaction.channel import insert_channel
 import datetime
 
 from database_interaction.db_connection import connection
-from comment_scrapping.comment import Comment
-from database_interaction.video import ScrapBy, update_scrap_date, insert_video
+from comment import Comment
+from database_interaction.video import insert_video
 import database_interaction.video as video
 
 from database_interaction.video import ScrapBy, update_scrap_date

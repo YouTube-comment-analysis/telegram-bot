@@ -1,7 +1,5 @@
 import enum
 
-from comment_scrapping.comment import Comment
-
 """
     Хранилище всех загруженных массивов
     telegram_id -> dict -> variables

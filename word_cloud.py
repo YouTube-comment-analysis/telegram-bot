@@ -1,11 +1,10 @@
 import PIL.Image as Image
-from wordcloud import WordCloud, wordcloud, ImageColorGenerator
+from wordcloud import WordCloud, ImageColorGenerator
 import numpy as np
 import matplotlib.pyplot as plt
 
 import analysis
-import database
-from comment_scrapping.comment import Comment
+from comment import Comment
 
 """
 Примеры использования:

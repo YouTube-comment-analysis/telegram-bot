@@ -1,4 +1,4 @@
-from comment_scrapping.comment import Comment
+from comment import Comment
 
 """
     Хранилище всех загруженных массивов

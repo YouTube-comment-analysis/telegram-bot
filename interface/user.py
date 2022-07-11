@@ -1,12 +1,11 @@
 import datetime
 import operator
-import threading
 from datetime import date
 
 from aiogram.types import CallbackQuery, ContentType
 from aiogram.types import Message
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, Calendar, Radio, ManagedMultiSelectAdapter
+from aiogram_dialog.widgets.kbd import Button, Calendar, Radio
 from aiogram_dialog.widgets.text import Const, Format, Multi, Progress
 from aiogram_dialog.manager.protocols import ManagedDialogAdapterProto, BaseDialogManager
 from aiogram_dialog import Dialog, Window, DialogManager
@@ -14,11 +13,10 @@ from aiogram_dialog.widgets.when import Whenable
 from typing import Dict
 import authorization
 import check_input_data
-import search
+from scraping import searching
 import user_variable_storage
 from authorization_process.auth import get_authed_user_id, change_password
 from authorization_process.password_encryption import is_correct_password
-from comment_scrapping.comment import Comment
 from database_interaction.auth import get_password, get_user_login
 from database_interaction.global_settings import Settings
 from database_interaction.promocode import use_promocode
@@ -27,7 +25,7 @@ from database_interaction.user import get_user_cabinet, get_user_role, UserRole
 import database
 
 from interface.FSM import DialogSign, DialogUser, DialogAdmin, DialogMngr
-from search import get_video_comments_count, is_channel_url_correct, is_video_url_correct
+from scraping import searching, getting_information, getting_data
 from user_variable_storage import UserVariable, get_variable_from_dict, add_variable_in_dict
 import analysis
 
@@ -130,7 +128,6 @@ async def to_analysis_param(c: CallbackQuery, button: Button, manager: DialogMan
 #     await manager.dialog().switch_to(DialogUser.analysis)
 
 
-import array_storage
 from database_interaction.video import ScrapBy
 import asyncio
 
@@ -225,13 +222,13 @@ async def background(c: CallbackQuery, manager: BaseDialogManager):
     teleid = c.from_user.id
 
     first_video_url = get_variable_from_dict(teleid, UserVariable.list_of_videos)[0]
-    channel_id = search.get_chanel_url_by_video(first_video_url).split('https://www.youtube.com/')[1]
+    channel_id = getting_information.get_chanel_url_by_video(first_video_url).split('https://www.youtube.com/')[1]
     in_popular_order = True if get_variable_from_dict(c.from_user.id, UserVariable.popular_or_no) == '1' else False
 
     max_comment = database.global_settings.get_global_setting(Settings.max_comments)
 
     if get_variable_from_dict(teleid, UserVariable.is_url_video):
-        total_count = search.get_video_comments_count(first_video_url)
+        total_count = getting_information.get_video_comments_amount(first_video_url)
     else:
         total_count = get_variable_from_dict(teleid, UserVariable.comment_total_count)
     if get_variable_from_dict(c.from_user.id, UserVariable.investment_or_not) == '2':
@@ -246,7 +243,7 @@ async def background(c: CallbackQuery, manager: BaseDialogManager):
     comments = []
     for video_url in get_variable_from_dict(teleid, UserVariable.list_of_videos):
         comments_from_video = []
-        for comment in search.get_comments_from_video(video_url, is_sort_by_recent_needed=not in_popular_order):
+        for comment in getting_data.get_comments_from_video_iterator(video_url, is_sort_by_recent_needed=not in_popular_order):
             if get_variable_from_dict(c.from_user.id, UserVariable.is_stop_download_comments):
                 await manager.switch_to(DialogUser.analysis)
                 return
@@ -341,7 +338,7 @@ async def get_data_radio_param_analysis(dialog_manager: DialogManager, **kwargs)
     if (first_button_state is None) and (second_button_state is None):
         url = get_variable_from_dict(dialog_manager.event.from_user.id, UserVariable.input_url)
         if get_variable_from_dict(dialog_manager.event.from_user.id, UserVariable.is_url_video):
-            mmm = get_video_comments_count(url)
+            mmm = getting_information.get_video_comments_amount(url)
             add_variable_in_dict(dialog_manager.event.from_user.id, UserVariable.list_of_videos, [url])
             add_variable_in_dict(dialog_manager.event.from_user.id, UserVariable.comment_total_count, mmm)
         else:
@@ -349,7 +346,7 @@ async def get_data_radio_param_analysis(dialog_manager: DialogManager, **kwargs)
             end_date = get_variable_from_dict(dialog_manager.event.from_user.id, UserVariable.analysis_second_date_selected)
             await dialog_manager.event.bot.send_message(dialog_manager.event.from_user.id,
                                                         "Пожалуйста подождите.. я считаю сколько комментариев нужно посчитать.")
-            videos_with_counts = search.get_list_of_channel_videos_with_additional_information(url, start_date, end_date)
+            videos_with_counts = getting_data.get_list_of_channel_videos_with_comment_count(url, start_date, end_date)
             # TODO тут бы прогресс бар прикрутить т.к. будет долго
             mmm = sum(pair['comment_count'] for pair in videos_with_counts)
             urls = []
@@ -428,7 +425,7 @@ async def get_data_info_comments(dialog_manager: DialogManager, **kwargs):
     if get_variable_from_dict(telegram_id, UserVariable.is_url_video):
         database.history.add_user_history_video(user_id, video_url.split('https://www.youtube.com/watch?v=')[1])
     else:
-        channel_id = search.get_chanel_url_by_video(video_url).split('https://www.youtube.com/')[1]
+        channel_id = getting_information.get_chanel_url_by_video(video_url).split('https://www.youtube.com/')[1]
         database.channel.insert_channel(channel_id)
         database.history.add_user_channel_video(user_id, channel_id)
     time = get_variable_from_dict(dialog_manager.event.from_user.id,
@@ -448,7 +445,7 @@ async def get_data_count_downolader(dialog_manager: DialogManager, **kwargs):
 
 async def input_url_video_to_analysis(m: Message, dialog: ManagedDialogAdapterProto,
                                       manager: DialogManager):
-    if search.is_video_url_correct(m.text):
+    if getting_information.is_video_url_correct(m.text):
         add_variable_in_dict(m.from_user.id, UserVariable.input_url, m.text)
         add_variable_in_dict(m.from_user.id, UserVariable.is_url_video, True)
         await manager.dialog().switch_to(DialogUser.analysis_param)
@@ -562,7 +559,7 @@ async def analysis_sentiment_result(dialog_manager: DialogManager, **kwargs):
 
 async def input_url_channel_to_analysis(m: Message, dialog: ManagedDialogAdapterProto,
                                         manager: DialogManager):
-    if search.is_channel_url_correct(m.text):
+    if getting_information.is_channel_url_correct(m.text):
         add_variable_in_dict(m.from_user.id, UserVariable.input_url, m.text)
         add_variable_in_dict(m.from_user.id, UserVariable.is_url_video, False)
         add_variable_in_dict(manager.event.from_user.id, UserVariable.current_date_interval_state, 0)
@@ -755,7 +752,7 @@ async def input_url_video_to_add_in_favorites(m: Message, dialog: ManagedDialogA
                                               manager: DialogManager):
     check, user_id = authorization.get_authed_user_id(m.from_user.id)
     url = m.text
-    if is_video_url_correct(url):
+    if getting_information.is_video_url_correct(url):
         id = url.split('watch?v=')[1]
         if id not in database.favorite.get_favorite_user_videos(user_id):
             database.favorite.add_favorite_user_video(user_id, id)
@@ -776,7 +773,7 @@ async def input_url_video_to_delete_in_favorites(m: Message, dialog: ManagedDial
                                                  manager: DialogManager):
     check, user_id = authorization.get_authed_user_id(m.from_user.id)
     url = m.text
-    if is_video_url_correct(url):
+    if getting_information.is_video_url_correct(url):
         id = url.split('watch?v=')[1]
         if id in database.favorite.get_favorite_user_videos(user_id):
             database.favorite.delete_favorite_user_video(user_id, id)
@@ -841,7 +838,7 @@ async def input_url_channel_to_add_in_favorites(m: Message, dialog: ManagedDialo
                                                 manager: DialogManager):
     check, user_id = authorization.get_authed_user_id(m.from_user.id)
     url = m.text
-    if is_channel_url_correct(url):
+    if getting_information.is_channel_url_correct(url):
         id = url.split('www.youtube.com/')[1]
         if id in database.favorite.get_favorite_user_channels(user_id):
             await m.answer(f"Этот канал уже в вашем избранном... ")
@@ -858,7 +855,7 @@ async def input_url_channel_to_delete_in_favorites(m: Message, dialog: ManagedDi
                                                    manager: DialogManager):
     check, user_id = authorization.get_authed_user_id(m.from_user.id)
     url = m.text
-    if is_channel_url_correct(url):
+    if getting_information.is_channel_url_correct(url):
         id = url.split('www.youtube.com/')[1]
         if id in database.favorite.get_favorite_user_channels(user_id):
             database.favorite.delete_favorite_user_channel(user_id, id)
