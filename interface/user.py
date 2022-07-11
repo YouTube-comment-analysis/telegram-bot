@@ -183,9 +183,12 @@ async def to_analysis_db(c: CallbackQuery, button: Button, manager: DialogManage
 
     add_variable_in_dict(manager.event.from_user.id, UserVariable.popular_or_no, popular_or_no)
     add_variable_in_dict(manager.event.from_user.id, UserVariable.investment_or_not, investment_or_not)
-
-    data = get_db(manager)
-    if data['have_db']:
+    # Вот щас прям вместо него, нужно прописать (а он у вас уже готовый где то использовался)
+    # метод который проверяет есть ли видео в бд или нет
+    videos =  get_variable_from_dict(c.from_user.id, UserVariable.list_of_videos)
+    popular_or_no = get_variable_from_dict(c.from_user.id, UserVariable.popular_or_no)
+    data = is_videos_in_bd(videos, popular_or_no)
+    if data:
         if popular_or_no is not None and investment_or_not is not None:
             await manager.dialog().switch_to(DialogUser.analysis_db)
         else:
@@ -376,7 +379,7 @@ async def get_data_radio_param_analysis(dialog_manager: DialogManager, **kwargs)
     }
 
 
-def get_db(dialog_manager: DialogManager, **kwargs):
+async def get_db(dialog_manager: DialogManager, **kwargs):
     videos_url = get_variable_from_dict(dialog_manager.event.from_user.id, UserVariable.list_of_videos)
     is_have_one = False
     min_date = datetime.datetime.now().date()
@@ -395,7 +398,27 @@ def get_db(dialog_manager: DialogManager, **kwargs):
         if date is not None:
             if date <= min_date:
                 min_date = date
-    return {"have_db": is_have_one, "date": min_date}
+    return {
+        "have_db": is_have_one,
+        "date": min_date,
+    }
+    # return {"have_db": is_have_one, "date": min_date}
+
+
+def is_videos_in_bd(videos_url: list, popular_or_no: str):
+    for video_url in videos_url:
+        video_id = video_url.split("https://www.youtube.com/watch?v=")[1]
+
+        scrap_by: ScrapBy
+        if popular_or_no == '1':
+            scrap_by = ScrapBy.popular
+        else:
+            scrap_by = ScrapBy.date
+        have = database.video.have_video_comments(video_id, scrap_by)
+        if have:
+            return True
+
+    return False
 
 
 async def get_data_info_comments(dialog_manager: DialogManager, **kwargs):
@@ -571,7 +594,7 @@ async def on_analysis_second_date_selected(c: CallbackQuery, widget, manager: Di
         elif state == 1:
             await manager.dialog().switch_to(DialogUser.words_without_inmut)
         elif state == 2:
-            await manager.dialog().switch_to(DialogUser.analysis_sentiment_result)
+            await manager.dialog().switch_to(DialogUser.analysis_sentiment_show_result)
         else:
             raise NotImplementedError
     else:
@@ -588,21 +611,22 @@ async def to_analysis_phrases(c: CallbackQuery, button: Button, manager: DialogM
 
 
 async def to_analysis_sentiment(c: CallbackQuery, button: Button, manager: DialogManager):
-    add_variable_in_dict(c.from_user.id, UserVariable.current_date_interval_state, 2)
+    teleid = c.from_user.id
+    add_variable_in_dict(teleid, UserVariable.current_date_interval_state, 2)
 
-    grouping = manager.dialog().find("r_sentiment_chart").get_checked()  # None => график, '1', '2', '3'
+    grouping = manager.dialog().find("r_sentiment_chart1").get_checked()  # None => график, '1', '2', '3'
     if grouping == '1':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'day')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'day')
     elif grouping == '2':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'week')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'week')
     elif grouping == '3':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'month')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'month')
     else:
         await c.message.answer(f"Вы не выбрали данные.")
         await manager.dialog().switch_to(DialogUser.analysis_sentiment_param)
         return
-
     add_variable_in_dict(c.from_user.id, UserVariable.is_in_loop, False)
+    # analysis_sentiment_result
     await manager.dialog().switch_to(DialogUser.analysis_sentiment_show_result)
 
 
@@ -630,14 +654,14 @@ async def get_data_radio_phrases(dialog_manager: DialogManager, **kwargs):
 
 
 async def get_data_radio_sentiment_grouping(dialog_manager: DialogManager, **kwargs):
-    phrases_chart = [
+    phrases_chart1 = [
         ("По дням", '1'),
         ("По неделям", '2'),
         ("По месяцам", '3'),
         # ("Banana", '4'),
     ]
     return {
-        "sentiment_chart": phrases_chart,
+        "phrases_chart1": phrases_chart1,
     }
 
 
@@ -1076,7 +1100,7 @@ dialog_user = Dialog(
     ),
     Window(
         Format("Данные в БД: {have_db}"
-               "\nСамое позднее обновление - {date}"
+               "\nСамое позднее обновление {date}"
                "\nНужно ли докачивать комментарии?"),
         Button(Const("Не нужно"), id="not_pump_up", on_click=to_not_pump_up),
         Button(Const("Нужно"), id="download", on_click=to_download),
@@ -1126,14 +1150,13 @@ dialog_user = Dialog(
         getter=get_data_radio_phrases,
     ),
     Window(
-        Const("- какая группировка должна быть?", when=is_chart),
+        Const("- какая группировка должна быть в анализе сентимента?"),
         Radio(
             Format("🔘 {item[0]}"),  # E.g `🔘 По дням`
             Format("⚪️ {item[0]}"),
-            id="r_sentiment_chart",
-            when=is_chart,
+            id="r_sentiment_chart1",
             item_id_getter=operator.itemgetter(1),
-            items="phrases_chart",
+            items="phrases_chart1",
         ),
         Button(Const("Продолжить"), id="analysis_sentiment_param", on_click=to_analysis_sentiment),
         Button(Const("Назад"), id="back_in_choose_analysis", on_click=to_choose_analysis),
