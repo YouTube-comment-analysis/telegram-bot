@@ -533,16 +533,16 @@ async def input_words_result2(dialog_manager: DialogManager, **kwargs):
         await dialog_manager.dialog().switch_to(DialogUser.choose_analysis)
 
 
-async def analysis_sentiment_result(m: CallbackQuery, button: Button, manager: DialogManager):
-    check, user_id = authorization.get_authed_user_id(m.from_user.id)
+async def analysis_sentiment_result(dialog_manager: DialogManager, **kwargs):
+    check, user_id = authorization.get_authed_user_id(dialog_manager.event.from_user.id)
     check_credits = database.user.get_user_credits(user_id) >= 1
     if check_credits:
-        teleid = m.from_user.id
+        teleid = dialog_manager.event.from_user.id
 
         database.user.decrease_user_credits(user_id, 1)
 
-        comments = get_data_info_comments(teleid, UserVariable.comments_array)
-        type_of_grouping = get_data_info_comments(teleid, UserVariable.type_of_grouping)
+        comments = get_variable_from_dict(teleid, UserVariable.comments_array)
+        type_of_grouping = get_variable_from_dict(teleid, UserVariable.type_of_grouping)
         if get_variable_from_dict(teleid, UserVariable.is_in_loop):
             start_date = get_variable_from_dict(teleid, UserVariable.analysis_first_date_selected)
             end_date = get_variable_from_dict(teleid, UserVariable.analysis_second_date_selected)
@@ -551,13 +551,13 @@ async def analysis_sentiment_result(m: CallbackQuery, button: Button, manager: D
         image_path = analysis.do_sentiment_analysis(comments, type_of_grouping, start_date, end_date, teleid)
 
         photo = open(image_path, 'rb')
-        await manager.event.bot.send_photo(m.message.chat.id, photo)
+        await dialog_manager.event.bot.send_photo(dialog_manager.event.from_user.id, photo)
         photo.close()
 
-        await manager.dialog().switch_to(DialogUser.analysis_sentiment_show_result)
+        await dialog_manager.dialog().switch_to(DialogUser.analysis_sentiment_result)
     else:
-        await m.answer("Плотите деняг..кхм, не дам я тебе анализ.\nP.S. Платить надо менеджеру")
-        await manager.dialog().switch_to(DialogUser.choose_analysis)
+        await dialog_manager.event.answer("Плотите деняг..кхм, не дам я тебе анализ.\nP.S. Платить надо менеджеру")
+        await dialog_manager.dialog().switch_to(DialogUser.choose_analysis)
 
 
 async def input_url_channel_to_analysis(m: Message, dialog: ManagedDialogAdapterProto,
@@ -1194,7 +1194,14 @@ dialog_user = Dialog(
         Const("Ваш результат с сентимент анализом готов!!"),
         Button(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
         Button(Const("Назад к анализу"), id="back_in_choose_analysis", on_click=to_choose_analysis),
+        getter=analysis_sentiment_result,
         state=DialogUser.analysis_sentiment_show_result,
+    ),
+    Window(
+        Const("Ваш результат с сентимент анализом готов!!"),
+        Button(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
+        Button(Const("Назад к анализу"), id="back_in_choose_analysis", on_click=to_choose_analysis),
+        state=DialogUser.analysis_sentiment_result,
     ),
     Window(
         Const(
