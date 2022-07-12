@@ -5,29 +5,30 @@ from datetime import date
 from aiogram.types import CallbackQuery, ContentType
 from aiogram.types import Message
 from aiogram_dialog.widgets.input import MessageInput
-from aiogram_dialog.widgets.kbd import Button, Calendar, Radio
+from aiogram_dialog.widgets.kbd import Button, Calendar, Radio, SwitchTo
 from aiogram_dialog.widgets.text import Const, Format, Multi, Progress
 from aiogram_dialog.manager.protocols import ManagedDialogAdapterProto, BaseDialogManager
 from aiogram_dialog import Dialog, Window, DialogManager
 from aiogram_dialog.widgets.when import Whenable
+from aiogram_dialog.widgets.media import StaticMedia
 from typing import Dict
 import authorization
 import check_input_data
-from scraping import searching
 import user_variable_storage
+from analysis.auxiliary import GroupingType
 from authorization_process.auth import get_authed_user_id, change_password
 from authorization_process.password_encryption import is_correct_password
 from database_interaction.auth import get_password, get_user_login
 from database_interaction.global_settings import Settings
 from database_interaction.promocode import use_promocode
 from database_interaction.user import get_user_cabinet, get_user_role, UserRole
+from analysis import word_cloud, sentiment_analysis, phrases_plot_analysis, phrases_pie_analysis
 
 import database
 
 from interface.FSM import DialogSign, DialogUser, DialogAdmin, DialogMngr
-from scraping import searching, getting_information, getting_data
+from scraping import getting_information, getting_data
 from user_variable_storage import UserVariable, get_variable_from_dict, add_variable_in_dict
-import analysis
 
 """Личный кабинет"""
 
@@ -164,11 +165,11 @@ async def to_analysis_phrase_param(c: CallbackQuery, button: Button, manager: Di
         return
     grouping = manager.dialog().find("r_phrases_chart").get_checked()  # None => график, '1', '2', '3'
     if grouping == '1':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'day')
+        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, GroupingType.day)
     elif grouping == '2':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'week')
+        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, GroupingType.week)
     elif grouping == '3':
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, 'month')
+        add_variable_in_dict(manager.event.from_user.id, UserVariable.type_of_grouping, GroupingType.month)
 
     add_variable_in_dict(c.from_user.id, UserVariable.is_in_loop, False)
     await manager.switch_to(DialogUser.input_words)
@@ -306,6 +307,7 @@ async def to_result_world_cloud(m: CallbackQuery, button: Button, manager: Dialo
         word_cloud.create_default_word_cloud(arr, path)
         photo = open(path, 'rb')
         await manager.event.bot.send_photo(m.message.chat.id, photo)
+        await reshow_message(manager)
         # await m.bot.send_photo(m.message.chat.id, photo) # РАБОЧИЙ
         photo.close()
         await manager.dialog().switch_to(DialogUser.analysis_result_word_cloud)
@@ -476,15 +478,16 @@ async def input_words_result(m: Message, dialog: ManagedDialogAdapterProto, mana
             start_date, end_date = None, None
 
         if get_variable_from_dict(teleid, UserVariable.is_chart_pie):
-            image_path = analysis.do_word_count_analysis_pie(comments, phrases, is_order_matter, start_date, end_date, teleid)
+            image_path = phrases_pie_analysis.make_word_count_analysis_pie(comments, phrases, is_order_matter, start_date, end_date, str(teleid))
         else:
             type_of_grouping = get_variable_from_dict(teleid, UserVariable.type_of_grouping)
-            image_path = analysis.do_word_count_analysis_hist(comments, phrases, type_of_grouping, is_order_matter, start_date, end_date, teleid)
+            image_path = phrases_plot_analysis.make_word_count_analysis_plot(comments, phrases, type_of_grouping, is_order_matter, start_date, end_date, str(teleid))
 
         photo = open(image_path, 'rb')
         await m.bot.send_photo(m.chat.id, photo)
         photo.close()
-        
+        await reshow_message(manager)
+
         await manager.dialog().switch_to(DialogUser.analysis_result_input_words)
     else:
         await m.reply("Плотите деняг..кхм, не дам я тебе анализ.\nP.S. Платить надо менеджеру")
@@ -513,16 +516,17 @@ async def input_words_result2(dialog_manager: DialogManager, **kwargs):
             #start_date, end_date = None, None
 
         if get_variable_from_dict(teleid, UserVariable.is_chart_pie):
-            image_path = analysis.do_word_count_analysis_pie(comments, phrases, is_order_matter, start_date, end_date,
-                                                             teleid)
+            image_path = phrases_pie_analysis.make_word_count_analysis_pie(comments, phrases, is_order_matter, start_date, end_date,
+                                                             str(teleid))
         else:
             type_of_grouping = get_variable_from_dict(teleid, UserVariable.type_of_grouping)
-            image_path = analysis.do_word_count_analysis_hist(comments, phrases, type_of_grouping, is_order_matter,
-                                                              start_date, end_date, teleid)
+            image_path = phrases_plot_analysis.make_word_count_analysis_plot(comments, phrases, type_of_grouping, is_order_matter,
+                                                              start_date, end_date, str(teleid))
 
         photo = open(image_path, 'rb')
         await dialog_manager.event.bot.send_photo(dialog_manager.event.from_user.id, photo)
         photo.close()
+        await reshow_message(dialog_manager)
 
         await dialog_manager.dialog().switch_to(DialogUser.analysis_result_input_words)
     else:
@@ -545,13 +549,13 @@ async def analysis_sentiment_result(dialog_manager: DialogManager, **kwargs):
             end_date = get_variable_from_dict(teleid, UserVariable.analysis_second_date_selected)
         else:
             start_date, end_date = None, None
-        image_path = analysis.do_sentiment_analysis(comments, type_of_grouping, start_date, end_date, teleid)
+        image_path = sentiment_analysis.make_sentiment_analysis_hist(comments, type_of_grouping, start_date, end_date, str(teleid))
+
+        #await dialog_manager.switch_to(DialogUser.analysis_sentiment_result)
 
         photo = open(image_path, 'rb')
-        await dialog_manager.event.bot.send_photo(dialog_manager.event.from_user.id, photo)
+        #await dialog_manager.event.bot.(disend_photoalog_manager.event.from_user.id, photo)
         photo.close()
-
-        await dialog_manager.dialog().switch_to(DialogUser.analysis_sentiment_result)
     else:
         await dialog_manager.event.answer("Плотите деняг..кхм, не дам я тебе анализ.\nP.S. Платить надо менеджеру")
         await dialog_manager.dialog().switch_to(DialogUser.choose_analysis)
@@ -569,8 +573,8 @@ async def input_url_channel_to_analysis(m: Message, dialog: ManagedDialogAdapter
         await manager.dialog().switch_to(DialogUser.analysis_channel)
 
 
-async def to_analysis_first_date_selected(c: CallbackQuery, button: Button, manager: DialogManager):
-    await manager.dialog().switch_to(DialogUser.analysis_first_date_selected)
+# async def to_analysis_first_date_selected(c: CallbackQuery, button: Button, manager: DialogManager):
+#     await manager.dialog().switch_to(DialogUser.analysis_first_date_selected)
 
 
 async def on_analysis_first_date_selected(c: CallbackQuery, widget, manager: DialogManager, selected_date: date):
@@ -580,17 +584,19 @@ async def on_analysis_first_date_selected(c: CallbackQuery, widget, manager: Dia
 
 
 async def on_analysis_second_date_selected(c: CallbackQuery, widget, manager: DialogManager, selected_date: date):
+    teleid = manager.event.from_user.id
     if check_input_data.CheckInputData.date_lesser_check(
-            get_variable_from_dict(manager.event.from_user.id, UserVariable.analysis_first_date_selected),
+            get_variable_from_dict(teleid, UserVariable.analysis_first_date_selected),
             selected_date):
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.analysis_second_date_selected, selected_date)
-        add_variable_in_dict(manager.event.from_user.id, UserVariable.is_in_loop, True)
-        state = get_variable_from_dict(manager.event.from_user.id, UserVariable.current_date_interval_state)
+        add_variable_in_dict(teleid, UserVariable.analysis_second_date_selected, selected_date)
+        add_variable_in_dict(teleid, UserVariable.is_in_loop, True)
+        state = get_variable_from_dict(teleid, UserVariable.current_date_interval_state)
         if state == 0:
             await manager.dialog().switch_to(DialogUser.analysis_param)
         elif state == 1:
             await manager.dialog().switch_to(DialogUser.words_without_inmut)
         elif state == 2:
+            await show_sentiment_hist(teleid, manager)
             await manager.dialog().switch_to(DialogUser.analysis_sentiment_show_result)
         else:
             raise NotImplementedError
@@ -613,18 +619,49 @@ async def to_analysis_sentiment(c: CallbackQuery, button: Button, manager: Dialo
 
     grouping = manager.dialog().find("r_sentiment_chart1").get_checked()  # None => график, '1', '2', '3'
     if grouping == '1':
-        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'day')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, GroupingType.day)
     elif grouping == '2':
-        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'week')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, GroupingType.week)
     elif grouping == '3':
-        add_variable_in_dict(teleid, UserVariable.type_of_grouping, 'month')
+        add_variable_in_dict(teleid, UserVariable.type_of_grouping, GroupingType.month)
     else:
         await c.message.answer(f"Вы не выбрали данные.")
         await manager.dialog().switch_to(DialogUser.analysis_sentiment_param)
         return
     add_variable_in_dict(c.from_user.id, UserVariable.is_in_loop, False)
-    # analysis_sentiment_result
+
+    await show_sentiment_hist(teleid, manager)
+
     await manager.dialog().switch_to(DialogUser.analysis_sentiment_show_result)
+
+
+async def show_sentiment_hist(teleid: int, manager: DialogManager):
+    check, user_id = authorization.get_authed_user_id(teleid)
+    check_credits = database.user.get_user_credits(user_id) >= 1
+    if check_credits:
+        database.user.decrease_user_credits(user_id, 1)
+
+        comments = get_variable_from_dict(teleid, UserVariable.comments_array)
+        type_of_grouping = get_variable_from_dict(teleid, UserVariable.type_of_grouping)
+        if get_variable_from_dict(teleid, UserVariable.is_in_loop):
+            start_date = get_variable_from_dict(teleid, UserVariable.analysis_first_date_selected)
+            end_date = get_variable_from_dict(teleid, UserVariable.analysis_second_date_selected)
+        else:
+            start_date, end_date = None, None
+        image_path = sentiment_analysis.make_sentiment_analysis_hist(comments, type_of_grouping, start_date, end_date,
+                                                                     str(teleid))
+        photo = open(image_path, 'rb')
+        photo_manager = await manager.event.bot.send_photo(teleid, photo)
+        photo.close()
+        await reshow_message(manager)
+    else:
+        await manager.event.answer("Плотите деняг..кхм, не дам я тебе анализ.\nP.S. Платить надо менеджеру")
+        await manager.switch_to(DialogUser.choose_analysis)
+
+
+async def reshow_message(manager: DialogManager):
+    await manager.event.bot.delete_message(manager.event.message.chat.id, manager.event.message.message_id)
+    await manager.switch_to(DialogUser.analysis_sentiment_show_result)
 
 
 async def to_analysis_sentiment_param(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -662,9 +699,6 @@ async def get_data_radio_sentiment_grouping(dialog_manager: DialogManager, **kwa
     }
 
 
-import word_cloud
-
-
 async def input_photo_png(m: Message, dialog: ManagedDialogAdapterProto,
                           manager: DialogManager):
     check, user_id = authorization.get_authed_user_id(m.from_user.id)
@@ -688,6 +722,7 @@ async def input_photo_png(m: Message, dialog: ManagedDialogAdapterProto,
         photo = open(path, 'rb')
         await m.bot.send_photo(m.chat.id, photo)
         photo.close()
+        await reshow_message(manager)
 
         await manager.dialog().switch_to(DialogUser.analysis_result_word_cloud)
         database.user.decrease_user_credits(user_id, 1)
@@ -945,6 +980,10 @@ async def get_data_last_ten_history_channel(dialog_manager: DialogManager, **kwa
     }
 
 
+def get_path_to_photo(manager: DialogManager):
+    return f'photos/{manager.event.from_user.id}.png'
+
+
 """Помощь"""
 
 # async def to_help(c: CallbackQuery, button: Button, manager: DialogManager):
@@ -1069,7 +1108,7 @@ dialog_user = Dialog(
     Window(
         Calendar(id='analysis_second_date_selected', on_click=on_analysis_second_date_selected),
         Const("Введите конечную дату анализа"),
-        Button(Const("Назад"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
+        SwitchTo(Const("Назад"), id="analysis_first_date_selected", state=DialogUser.analysis_first_date_selected),
         state=DialogUser.analysis_second_date_selected,
     ),
     Window(
@@ -1115,7 +1154,7 @@ dialog_user = Dialog(
         state=DialogUser.downoland_comments,
     ),
     Window(
-        Format("Скачано: {n} комментариев за {time} секунд.\nВыберите вид анализа"),
+        Format("Найдено {n} комментариев за {time} секунд.\nВыберите вид анализа"),
         Button(Const("Облако слов (WorldCloud)"), id="analysis_world_cloud", on_click=to_analysis_world_cloud),
         Button(Const("Кол-во слов/словосочетаний"), id="analysis_phrases", on_click=to_analysis_phrases),
         Button(Const("Сентимент анализ"), id="analysis_sentiment", on_click=to_analysis_sentiment_param),
@@ -1125,7 +1164,7 @@ dialog_user = Dialog(
     ),
     Window(
         Const("Выберите фильтр:\n- важен ли порядок слов?"),
-        Const("- какая группировка должна быть?", when=is_chart),
+        Const("какая группировка должна быть?", when=is_chart),
         Radio(
             Format("🔘 {item[0]}"),  # E.g `🔘 Да `
             Format("⚪️ {item[0]}"),
@@ -1147,7 +1186,7 @@ dialog_user = Dialog(
         getter=get_data_radio_phrases,
     ),
     Window(
-        Const("- какая группировка должна быть в анализе сентимента?"),
+        Const("Какая группировка должна быть?"), #сентимент анализ
         Radio(
             Format("🔘 {item[0]}"),  # E.g `🔘 По дням`
             Format("⚪️ {item[0]}"),
@@ -1183,20 +1222,23 @@ dialog_user = Dialog(
         # StaticMedia(path=r"D:\PycharmProjects\telegram-bot\word_cloud_data\test-wordcloud-from-mess.png",
         #             type=ContentType.PHOTO),
         Const("Ваш результат с словосочетаниями/словами готов!"),
-        Button(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
+        SwitchTo(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", state=DialogUser.analysis_first_date_selected),
         Button(Const("Назад к анализу"), id="back_in_choose_analysis", on_click=to_choose_analysis),
         state=DialogUser.analysis_result_input_words,
     ),
     Window(
         Const("Ваш результат с сентимент анализом готов!!"),
-        Button(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
+        SwitchTo(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", state=DialogUser.analysis_first_date_selected),
         Button(Const("Назад к анализу"), id="back_in_choose_analysis", on_click=to_choose_analysis),
-        getter=analysis_sentiment_result,
+        # StaticMedia(
+        #         path=get_path_to_photo,
+        #         type=ContentType.PHOTO
+        #     ),
         state=DialogUser.analysis_sentiment_show_result,
     ),
     Window(
         Const("Ваш результат с сентимент анализом готов!!"),
-        Button(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", on_click=to_analysis_first_date_selected),
+        SwitchTo(Const("Обновить по новому выбранному интервалу"), id="analysis_first_date_selected", state=DialogUser.analysis_first_date_selected),
         Button(Const("Назад к анализу"), id="back_in_choose_analysis", on_click=to_choose_analysis),
         state=DialogUser.analysis_sentiment_result,
     ),

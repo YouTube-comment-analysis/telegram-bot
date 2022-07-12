@@ -12,14 +12,15 @@ from scraping.getting_information import get_video_post_date
 from scraping.searching import get_get_response
 
 
-def get_list_of_channel_videos_with_comment_count(channel_url: str, start_date: datetime.date, end_date: datetime.date) -> list:
-    '''
+def get_list_of_channel_videos_with_comment_count(channel_url: str, start_date: datetime.date, end_date: datetime.date) -> list[dict[str, int]]:
+    """
     Получает список видеороликов с количеством комментариве с заданного канала по заданному интервалу
+
     :param channel_url:
     :param start_date:
     :param end_date:
     :return: {'url': <url ролика>, 'comment_count': <количество комментариев ролика>}
-    '''
+    """
 
     video_urls = get_video_ids_by_channel_url(channel_url)
     for i in range(len(video_urls)):
@@ -36,14 +37,15 @@ def get_list_of_channel_videos_with_comment_count(channel_url: str, start_date: 
     return dic_list
 
 
-def get_video_index_by_date(urls: list, date: datetime.date, side=-1):
-    '''
+def get_video_index_by_date(urls: list[str], date: datetime.date, side=-1) -> int:
+    """
     Находит индекс ролика в списке, соответствющего заданной дате публикации
+
     :param urls: список url роликов
     :param date: искомая дата публикации ролика
     :param side: -1 взять ролик с ближайшей меньшей датой; 1 взять ролик с ближайшей большей датой
     :return: индекс в массиве, соответствующий видеоролику с искомой датой публикации
-    '''
+    """
     first = 0
     mid = 0
     last = len(urls) - 1
@@ -57,12 +59,13 @@ def get_video_index_by_date(urls: list, date: datetime.date, side=-1):
     return first if side == -1 else last if side == 1 else mid
 
 
-def get_video_ids_by_channel_url(url: str):
-    '''
+def get_video_ids_by_channel_url(url: str) -> [str]:
+    """
     Возвращает список всех видео канала
+
     :param url: url канала
     :return: Список id видеороликов
-    '''
+    """
     logging.info('Запуск поиска всех видео канала')
     session = requests.Session()
     session.headers['User-Agent'] = searching.SESSION_USER_AGENT
@@ -88,7 +91,7 @@ def get_video_ids_by_channel_url(url: str):
         return []
 
 
-def get_videos_in_date_interval(urls: list, start_date: datetime.date, end_date: datetime.date) -> list:
+def get_videos_in_date_interval(urls: list[str], start_date: datetime.date, end_date: datetime.date) -> list[str]:
     logging.info('Запуск отбора роликов из нужного временного интервала')
     last_date = get_video_post_date(urls[0])
     first_date = get_video_post_date(urls[-1])
@@ -96,10 +99,10 @@ def get_videos_in_date_interval(urls: list, start_date: datetime.date, end_date:
         return []
 
     last_index = get_video_index_by_date(urls, start_date, 1)
-    urls = urls[0:last_index + 1]
+    result = urls[0:last_index + 1]
     first_index = get_video_index_by_date(urls, end_date, -1)
-    urls = urls[first_index:]
-    return urls
+    result = result[first_index:]
+    return result
 
 
 # ----------------------
@@ -179,7 +182,7 @@ def get_comments_from_video_iterator(url: str, is_sort_by_recent_needed=False, a
         continuation_name = 'appendContinuationItemsAction'
 
 
-def get_comment_from_comment_data(json):
+def get_comment_from_comment_data(json) -> Comment:
     comment = Comment()
 
     comment.id = json['commentId']

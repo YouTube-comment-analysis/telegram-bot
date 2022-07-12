@@ -3,8 +3,8 @@ from wordcloud import WordCloud, ImageColorGenerator
 import numpy as np
 import matplotlib.pyplot as plt
 
-import analysis
 from comment import Comment
+from analysis import auxiliary
 
 """
 Примеры использования:
@@ -21,7 +21,7 @@ save_path = ''
 
 def get_all_normal_words(comments: [Comment]):
     comments_text = " ".join(list(map(lambda x: x.text, comments)))
-    words = analysis.get_normal_phrases(comments_text.split('\n'))
+    words = auxiliary.get_normal_phrases(comments_text.split('\n'))
     text = []
     for mess in words:
         for word in mess:
@@ -55,6 +55,3 @@ def create_adoptive_background_word_cloud(comments: [Comment], png_mask_path: st
     path = f'{save_path}{file_name}'
     plt.savefig(path, format="png", bbox_inches='tight')
     return path
-
-
-

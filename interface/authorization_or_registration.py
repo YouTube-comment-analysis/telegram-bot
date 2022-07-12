@@ -28,6 +28,7 @@ from user_variable_storage import UserVariable, get_variable_from_dict, add_vari
 
 
 async def to_sign_up(c: CallbackQuery, button: Button, manager: DialogManager):
+    try_add_new_telegram_id(c.from_user.id)
     await manager.dialog().switch_to(DialogSign.input_name)
 
 
@@ -88,6 +89,7 @@ async def email_handler(m: Message, dialog: ManagedDialogAdapterProto,
 
 
 async def to_sign_in(c: CallbackQuery, button: Button, manager: DialogManager):
+    try_add_new_telegram_id(c.from_user.id)
     await manager.dialog().switch_to(DialogSign.input_login_auth)
 
 
@@ -250,5 +252,4 @@ dialog_start = Dialog(
 async def start(m: Message, dialog_manager: DialogManager):
     # it is important to reset stack because user wants to restart everything
     authorization.sign_out(m.from_user.id)
-    try_add_new_telegram_id(m.from_user.id)
     await dialog_manager.start(DialogSign.start, mode=StartMode.RESET_STACK)

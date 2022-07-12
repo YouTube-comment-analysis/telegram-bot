@@ -3,7 +3,7 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram import Dispatcher
 import config
-from database_interaction.user import UserRole, UserCabinet, register_user, user_exists
+from database_interaction.user import UserRole, UserCabinet
 
 bot = Bot(token=config.telegram_bot_token)
 

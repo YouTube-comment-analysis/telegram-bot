@@ -56,11 +56,12 @@ def get_video_comments_amount(url: str) -> int:
 
 
 def get_channel_url_by_name(name: str):
-    '''
-    Пулучает url канала по его названию
+    """
+    Получает url канала по его названию
+
     :param name: Название канала
     :return: url канала
-    '''
+    """
     response = ChannelsSearch(name, limit=1, region='RU')
     if str(response.responseSource)[3:18] == "channelRenderer":
         link = response.resultComponents[0]['link']
