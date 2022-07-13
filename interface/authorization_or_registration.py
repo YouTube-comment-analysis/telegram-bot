@@ -4,8 +4,8 @@ from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.text import Const
 from aiogram.types import Message, CallbackQuery
 
-import authorization
-import user_variable_storage
+from authorization_process import authorization
+from interface.user import user_variable_storage
 from authorization_process.auth import sign_in, sign_up
 from database_interaction.auth import get_login_exists
 from database_interaction.user import UserCabinet, UserRole
@@ -13,8 +13,8 @@ from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 
 from interface.FSM import DialogSign, DialogUser
 from check_input_data import CheckInputData
-from user_variable_storage import try_add_new_telegram_id
-from user_variable_storage import UserVariable, get_variable_from_dict, add_variable_in_dict
+from interface.user.user_variable_storage import try_add_new_telegram_id
+from interface.user.user_variable_storage import UserVariable, get_variable_from_dict, add_variable_in_dict
 
 
 

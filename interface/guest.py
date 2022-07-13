@@ -89,6 +89,7 @@ async def get_email(message: types.Message, state: FSMContext):
 
 
 # Ловим текст - номер телeфона, и записываем его в СЛОВАРЬ, потом все отправляем в БД и заканчиваем регистрацию
+"""
 async def get_phone(message: types.Message, state: FSMContext):
     questCabinet.phone = message.text
     questCabinet.telegram_id = message.chat.id
@@ -107,4 +108,4 @@ def register_handlers_guest(dp: Dispatcher):
     dp.register_message_handler(get_last_name, state=FSMGuest.last_name)
     dp.register_message_handler(get_middle_name, state=FSMGuest.middle_name)
     dp.register_message_handler(get_email, state=FSMGuest.email)
-    dp.register_message_handler(get_phone, state=FSMGuest.phone)
+    dp.register_message_handler(get_phone, state=FSMGuest.phone)""" #код не используется

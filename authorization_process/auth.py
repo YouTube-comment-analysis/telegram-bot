@@ -1,5 +1,5 @@
 import database_interaction.auth as auth
-import database
+from database_interaction import database
 from authorization_process.password_encryption import is_correct_password, hash_new_password
 
 user = database.user.UserCabinet

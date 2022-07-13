@@ -39,7 +39,7 @@ def get_video_comments_amount(url: str) -> int:
     response = searching.get_get_response(url)
 
     session = requests.Session()
-    session.headers['User-Agent'] = searching.SESSION_USER_AGENT
+    session.headers['user-Agent'] = searching.SESSION_USER_AGENT
 
     post_information = searching.get_post_information(response.text)
     post_information.token = response.text.split('continuationCommand":{"token":"')[1].split('"')[0]

@@ -38,26 +38,32 @@ class UserVariable(enum.Enum):
     phrases = 'phrases'
 
 
-def try_add_new_telegram_id(telegram_id: str):
-    '''
-    Вызови этот метод при заходе пользователя (start). Он добавляет пространство глобальных переменных для пользователя
-    :param telegram_id:
-    '''
+def try_add_new_telegram_id(telegram_id: int):
+    """
+    Вызови этот метод при заходе пользователя (войти | заришистрироваться). Он добавляет пространство глобальных переменных для пользователя
+    """
     if telegram_id not in storage:
         storage[telegram_id] = dict()
 
 
-def delete_user_variables(telegram_id: str):
-    '''
-    ви этот метод при выходе пользователя (to_yes). Он удаляет пространство глобальных переменных пользователя
-    :param telegram_id:
-    '''
+def delete_user_variables(telegram_id: int):
+    """
+    Вызови этот метод при выходе пользователя. Он удаляет пространство глобальных переменных пользователя
+    """
     storage.pop(telegram_id, None)
 
 
-def add_variable_in_dict(telegram_id: str, variable: UserVariable, value):
+def clear_user_variable_space(telegram_id: int):
+    """
+    Очищает все переменные пользователя, высвобождая память
+    """
+    storage[telegram_id] = dict()
+
+
+def add_variable_in_dict(telegram_id: int, variable: UserVariable, value):
     """
     Добавить глобальную переменную по телеграм id
+
     :param telegram_id: телеграм id
     :param variable: имя переменной
     :param value: значение переменной
@@ -65,9 +71,10 @@ def add_variable_in_dict(telegram_id: str, variable: UserVariable, value):
     storage[telegram_id][variable.value] = value
 
 
-def get_variable_from_dict(telegram_id: str, variable: UserVariable):
+def get_variable_from_dict(telegram_id: int, variable: UserVariable):
     """
     Возвращает глобальную переменную по телеграм id
+
     :param telegram_id: телеграм id
     :param variable: имя переменной
     :return: значение переменной

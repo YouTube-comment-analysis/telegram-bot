@@ -68,7 +68,7 @@ def get_video_ids_by_channel_url(url: str) -> [str]:
     """
     logging.info('Запуск поиска всех видео канала')
     session = requests.Session()
-    session.headers['User-Agent'] = searching.SESSION_USER_AGENT
+    session.headers['user-Agent'] = searching.SESSION_USER_AGENT
 
     response = get_get_response(url + "/videos")
     if response.status_code == 200:
@@ -112,7 +112,7 @@ def get_comments_from_video_iterator(url: str, is_sort_by_recent_needed=False, a
     response = get_get_response(url)
 
     session = requests.Session()
-    session.headers['User-Agent'] = searching.SESSION_USER_AGENT
+    session.headers['user-Agent'] = searching.SESSION_USER_AGENT
 
     post_information = searching.get_post_information(response.text)
     post_information.token = response.text.split('continuationCommand":{"token":"')[1].split('"')[0]

@@ -24,17 +24,11 @@ def make_word_count_analysis_pie(comments: list[Comment], phrases: list[str], is
     :return: относительный путь к круговой диаграмме
     """
     if start_date is None:
-        start_date = datetime.date(9999, 1, 1)
-        for comment in comments:
-            if comment.date < start_date:
-                start_date = comment.date
+        start_date = auxiliary.get_earliest_comment_date(comments)
     if end_date is None:
-        end_date = datetime.date(1, 1, 1)
-        for comment in comments:
-            if comment.date > end_date:
-                end_date = comment.date
+        end_date = auxiliary.get_latest_comment_date(comments)
 
-    equal_phrase_counts = get_equal_phases_counts(comments, phrases, is_order_matter, start_date, end_date)
+    equal_phrase_counts = get_equal_phases_counts(comments, phrases, is_order_matter, start_date, end_date) #если совпадений не будет най дено, то дальше будет ошибка
     return save_pie(equal_phrase_counts, phrases, image_name)
 
 

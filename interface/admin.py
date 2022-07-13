@@ -5,12 +5,11 @@ from aiogram_dialog.widgets.input import MessageInput
 from aiogram_dialog.widgets.kbd import Button
 from aiogram_dialog.widgets.text import Const, Format
 
-import database_interaction.auth
-from user_variable_storage import UserVariable, add_variable_in_dict, get_variable_from_dict
+from interface.user.user_variable_storage import UserVariable, add_variable_in_dict, get_variable_from_dict
 
-import authorization
+from authorization_process import authorization
 from interface.FSM import DialogUser, DialogAdmin
-import database
+from database_interaction import database
 from database_interaction.user import UserRole
 
 

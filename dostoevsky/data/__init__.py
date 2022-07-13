@@ -28,7 +28,7 @@ class DataDownloader:
         destination_path: str = os.path.join(DATA_BASE_PATH, destination)
         url: str = os.path.join(STORAGE_BASE_URL, source)
         request = urllib.request.Request(url)
-        request.add_header('User-Agent', self.USERAGENT)
+        request.add_header('user-Agent', self.USERAGENT)
         response = urllib.request.urlopen(request, context=self._ssl_context())
         with open(destination_path, 'wb') as output:
             filesize: int = 0
